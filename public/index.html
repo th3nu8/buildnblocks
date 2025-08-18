@@ -226,23 +226,24 @@ function step(dt) {
         const px = local.pos.x;
         const pz = local.pos.z;
 
-        // --- VERTICAL COLLISIONS ---
+        // VERTICAL COLLISIONS
         if (px + radius > min.x && px - radius < max.x &&
             pz + radius > min.z && pz - radius < max.z) {
+
             // Landing on top
-            if (local.vel.y <= 0 && bottom < max.y && bottom > min.y) {
+            if (local.vel.y <= 0 && bottom < max.y && bottom > min.y - 0.1) {
                 local.pos.y = max.y + halfHeight;
                 local.vel.y = 0;
                 local.onGround = true;
             }
             // Hitting the bottom
-            else if (local.vel.y > 0 && top > min.y && top < max.y) {
+            else if (local.vel.y > 0 && top > min.y && top < max.y + 0.1) {
                 local.pos.y = min.y - halfHeight;
                 local.vel.y = 0;
             }
         }
 
-        // --- HORIZONTAL COLLISIONS (X/Z) ---
+        // HORIZONTAL COLLISIONS (X/Z)
         if (top > min.y && bottom < max.y) {
             // X-axis
             if (px + radius > min.x && px - radius < max.x) {
@@ -365,6 +366,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
