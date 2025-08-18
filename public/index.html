@@ -47,10 +47,10 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 <!-- AUTH MODAL -->
 <div id="authContainer">
   <h3>Login / Signup</h3>
-  <input type="email" id="email" placeholder="Email"/>
-  <input type="password" id="password" placeholder="Password"/>
-  <button id="signupBtn">Sign Up</button>
-  <button id="loginBtn">Login</button>
+  <input id="emailInput" placeholder="Email">
+  <input id="passwordInput" placeholder="Password" type="password">
+  <button id="signupBtn" type="button">Sign Up</button>
+  <button id="loginBtn" type="button">Login</button>
   <div id="authStatus"></div>
 </div>
 
@@ -69,29 +69,38 @@ const authStatus = document.getElementById('authStatus');
 let localId = null;
 
 async function signup() {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+
     const res = await fetch('/signup', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({email: emailInput.value, password: passwordInput.value})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
     });
     const data = await res.json();
-    if(data.success) { authStatus.textContent = 'Signup successful!'; startGame(data.id); }
-    else authStatus.textContent = data.error;
+    alert(data.message);
 }
 
 async function login() {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+
     const res = await fetch('/login', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({email: emailInput.value, password: passwordInput.value})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
     });
     const data = await res.json();
-    if(data.success) { authStatus.textContent = 'Login successful!'; startGame(data.id); }
-    else authStatus.textContent = data.error;
+    alert(data.message);
+
+    if(data.success){
+        // set your logged-in player id here
+        local.id = data.playerId;
+    }
 }
 
-signupBtn.onclick = signup;
-loginBtn.onclick = login;
+document.getElementById('signupBtn').onclick = signup;
+document.getElementById('loginBtn').onclick = login;
 
 function startGame(id){
     localId = id;
@@ -505,6 +514,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
