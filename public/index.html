@@ -94,7 +94,7 @@ window.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('mousedown',e=>{ if(e.button===2){rotating=true;document.body.style.cursor='none'; if(renderer.domElement.requestPointerLock) renderer.domElement.requestPointerLock();} });
 window.addEventListener('mouseup',e=>{ if(e.button===2){rotating=false;document.body.style.cursor='default'; if(document.exitPointerLock) document.exitPointerLock();} });
 window.addEventListener('wheel', (e) => {
-    local.cam.dist -= e.deltaY * 0.01; // scroll sensitivity
+    local.cam.dist += e.deltaY * 0.01; // scroll sensitivity
     local.cam.dist = Math.max(2, Math.min(15, local.cam.dist)); // clamp distance
 });
 document.addEventListener('mousemove', e => {
@@ -289,12 +289,13 @@ function step(dt) {
     local.mesh.group.rotation.y = local.yaw;
 
     // Camera
-    const camTarget = local.pos.clone().add(new THREE.Vector3(0, 1.2, 0));
-    camera.position.set(
-        camTarget.x + Math.sin(local.cam.yaw) * local.cam.dist * Math.cos(local.cam.pitch),
-        camTarget.y + Math.sin(local.cam.pitch) * local.cam.dist + 1.5,
-        camTarget.z + Math.cos(local.cam.yaw) * local.cam.dist * Math.cos(local.cam.pitch)
+    const camTarget = local.pos.clone().add(new THREE.Vector3(0, 1.2, 0)); // focus point
+    const dir = new THREE.Vector3(
+        Math.sin(local.cam.yaw) * Math.cos(local.cam.pitch),
+        Math.sin(local.cam.pitch),
+        Math.cos(local.cam.yaw) * Math.cos(local.cam.pitch)
     );
+    camera.position.copy(camTarget.clone().addScaledVector(dir, local.cam.dist));
     camera.lookAt(camTarget);
 
     socket.emit('move', { x: local.pos.x, y: local.pos.y, z: local.pos.z, yaw: local.yaw, name: local.name });
@@ -374,6 +375,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
