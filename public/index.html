@@ -57,6 +57,14 @@ function removeBlockAt(x,y,z){
 }
 for(let x=-25;x<25;x++)for(let z=-25;z<25;z++)makeBlock(x,0,z,true);
 
+// ---------- BUILD PREVIEW BLOCK ----------
+const previewMaterial = new THREE.MeshStandardMaterial({color: 0x00ff00, transparent: true, opacity: 0.5});
+const previewGeometry = new THREE.BoxGeometry(1,1,1);
+const previewBlock = new THREE.Mesh(previewGeometry, previewMaterial);
+previewBlock.visible = false; // hidden until needed
+scene.add(previewBlock);
+
+
 /* ---------- AVATAR ---------- */
 function makeAvatar(colorTorso=0x4cc3ff,colorLeg=0x3333ff){
   const g=new THREE.Group();
@@ -85,7 +93,18 @@ let rotating=false;
 window.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('mousedown',e=>{ if(e.button===2){rotating=true;document.body.style.cursor='none'; if(renderer.domElement.requestPointerLock) renderer.domElement.requestPointerLock();} });
 window.addEventListener('mouseup',e=>{ if(e.button===2){rotating=false;document.body.style.cursor='default'; if(document.exitPointerLock) document.exitPointerLock();} });
-document.addEventListener('mousemove',e=>{ if(rotating){ local.cam.yaw-=e.movementX*0.005; local.cam.pitch+=e.movementY*0.005; local.cam.pitch=Math.max(-1.2,Math.min(1.2,local.cam.pitch)); } });
+document.addEventListener('mousemove', e => {
+  if(rotating){ 
+    local.cam.yaw -= e.movementX*0.005;
+    local.cam.pitch += e.movementY*0.005;
+    local.cam.pitch = Math.max(-1.2, Math.min(1.2, local.cam.pitch));
+  }
+
+  // Always track mouse for build preview
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
 
 /* ---------- TOOLS ---------- */
 let activeTool=null;
@@ -272,6 +291,29 @@ function step(dt){
   socket.emit('move', {x: local.pos.x, y: local.pos.y, z: local.pos.z, yaw: local.yaw, name: local.name});
 }
 
+function updatePreviewBlock() {
+  if(activeTool !== 'build') {
+    previewBlock.visible = false;
+    return;
+  }
+  
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(blocks);
+  if(hits.length > 0) {
+    const hit = hits[0];
+    const pos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
+    const x = Math.floor(pos.x);
+    const y = Math.floor(pos.y);
+    const z = Math.floor(pos.z);
+    
+    // Position preview block
+    previewBlock.position.set(x + 0.5, y + 0.5, z + 0.5);
+    previewBlock.visible = true;
+  } else {
+    previewBlock.visible = false;
+  }
+}
+
 
 function animateOthers(dt){
   others.forEach(p=>{
@@ -284,12 +326,33 @@ function animateOthers(dt){
   });
 }
 
-let last=performance.now();
-function animate(now){ requestAnimationFrame(animate); const dt=(now-last)/1000; last=now; step(dt); animateOthers(dt); renderer.render(scene,camera);}
+let last = performance.now();
+
+function animate(now) {
+    requestAnimationFrame(animate);
+
+    const dt = (now - last) / 1000;
+    last = now;
+
+    // Step physics and movement
+    step(dt);
+
+    // Animate other players
+    animateOthers(dt);
+
+    // Update the preview block (green highlighted block)
+    updatePreviewBlock();
+
+    // Render the scene
+    renderer.render(scene, camera);
+}
+
+// Start the animation loop
 animate(last);
 
 window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
 </script>
 </body>
 </html>
+
 
