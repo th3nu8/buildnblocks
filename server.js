@@ -9,8 +9,41 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+let players = {};
+if (fs.existsSync('players.json')) {
+    players = JSON.parse(fs.readFileSync('players.json'));
+}
+
 app.use(express.json());
 app.use(express.static('public')); // serve index.html, stud.png, etc.
+// SIGN UP
+app.post('/signup', (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.json({ success: false, message: 'Missing email or password' });
+
+    if (players[email]) return res.json({ success: false, message: 'Email already exists' });
+
+    const hashed = bcrypt.hashSync(password, 8);
+    const playerId = Date.now().toString(); // unique player ID
+    players[email] = { password: hashed, id: playerId };
+
+    fs.writeFileSync('players.json', JSON.stringify(players, null, 2));
+    res.json({ success: true, message: 'Signed up!', playerId });
+});
+
+// LOGIN
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+
+    if (!players[email]) return res.json({ success: false, message: 'No account with that email' });
+
+    if (bcrypt.compareSync(password, players[email].password)) {
+        res.json({ success: true, message: 'Logged in!', playerId: players[email].id });
+    } else {
+        res.json({ success: false, message: 'Wrong password' });
+    }
+});
+
 
 const USERS_FILE = path.join(__dirname, 'users.json');
 
@@ -98,4 +131,5 @@ io.on('connection', socket => {
 
 // ----------------- START SERVER -----------------
 server.listen(3000, () => console.log('Server running on http://localhost:3000'));
+
 
