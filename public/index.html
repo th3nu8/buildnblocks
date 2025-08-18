@@ -292,28 +292,39 @@ function step(dt){
 }
 
 function updatePreviewBlock() {
-  if(activeTool !== 'build') {
-    previewBlock.visible = false;
-    return;
-  }
-  
-  raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(blocks);
-  if(hits.length > 0) {
-    const hit = hits[0];
-    const pos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
-    const x = Math.floor(pos.x);
-    const y = Math.floor(pos.y);
-    const z = Math.floor(pos.z);
-    
-    // Position preview block
-    previewBlock.position.set(x + 0.5, y + 0.5, z + 0.5);
-    previewBlock.visible = true;
-  } else {
-    previewBlock.visible = false;
-  }
-}
+    if (!activeTool) {
+        previewBlock.visible = false;
+        return;
+    }
 
+    // Raycast from camera through mouse
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(blocks);
+
+    if (hits.length > 0) {
+        const hit = hits[0];
+        let pos = hit.point.clone();
+
+        if (activeTool === 'build') {
+            pos.add(hit.face.normal.clone().multiplyScalar(0.5));
+            previewBlock.material.color.set(0x00ff00); // green
+        } else if (activeTool === 'remove') {
+            pos = hit.object.position.clone(); // center of the block
+            previewBlock.material.color.set(0xff0000); // red
+        }
+
+        // Snap to grid
+        previewBlock.position.set(
+            Math.floor(pos.x) + 0.5,
+            Math.floor(pos.y) + 0.5,
+            Math.floor(pos.z) + 0.5
+        );
+
+        previewBlock.visible = true;
+    } else {
+        previewBlock.visible = false;
+    }
+}
 
 function animateOthers(dt){
   others.forEach(p=>{
@@ -354,5 +365,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
