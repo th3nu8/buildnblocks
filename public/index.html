@@ -61,6 +61,7 @@ const sun=new THREE.DirectionalLight(0xffffff,0.8);
 sun.position.set(5,10,5);
 scene.add(sun);
 
+const faceTexture = textureLoader.load('face.png');
 const textureLoader=new THREE.TextureLoader();
 const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);});
 
@@ -88,10 +89,17 @@ scene.add(previewBlock);
 
 
 /* ---------- AVATAR ---------- */
-function makeAvatar(colorTorso=0x4cc3ff,colorLeg=0x3333ff){
+function makeAvatar(colorTorso=0x4cc3ff, colorLeg=0x3333ff, faceMap=null) {
   const g=new THREE.Group();
   const torso=new THREE.Mesh(new THREE.BoxGeometry(1,0.9,0.5),new THREE.MeshStandardMaterial({color:colorTorso})); torso.position.y=0.4; g.add(torso);
-  const head=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.8,0.8),new THREE.MeshStandardMaterial({color:0xffe08a})); head.position.y=1.25; g.add(head);
+  const headMaterial = new THREE.MeshStandardMaterial({map: faceTexture});
+  const headMaterial = faceMap ? new THREE.MeshStandardMaterial({map: faceMap}) 
+                            : new THREE.MeshStandardMaterial({color:0xffe08a});
+
+  const head = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8,0.8,0.8),
+    headMaterial
+  );
   const shoulderL=new THREE.Group(); shoulderL.position.set(-0.65,1.1,0);
   const armL=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.9,0.4),new THREE.MeshStandardMaterial({color:colorTorso})); armL.position.y=-0.7; shoulderL.add(armL); g.add(shoulderL);
   const shoulderR=new THREE.Group(); shoulderR.position.set(0.65,1.1,0);
@@ -105,7 +113,7 @@ function makeAvatar(colorTorso=0x4cc3ff,colorLeg=0x3333ff){
 
 /* ---------- LOCAL PLAYER ---------- */
 const local={id:null,colorTorso:0x4cc3ff,colorLeg:0x3333ff,pos:new THREE.Vector3(0,2.5,0),vel:new THREE.Vector3(),onGround:false,yaw:0,walkTime:0,cam:{yaw:0,pitch:0,dist:6},mesh:null,name:"Player"};
-const {group,parts}=makeAvatar(local.colorTorso,local.colorLeg);
+const {group, parts} = makeAvatar(local.colorTorso, local.colorLeg, faceTexture);
 local.mesh={group,...parts};
 scene.add(group);
 local.health = 100; // max 100
@@ -166,7 +174,7 @@ function makeNametagSprite(text){
 
 function spawnOther(id,p){
   if(others.has(id))return;
-  const {group,parts}=makeAvatar(0xff4444,0x3333ff);
+  const {group, parts} = makeAvatar(0xff4444, 0x3333ff, faceTexture);
   group.position.set(p.x,p.y,p.z);
   const nametagObj=makeNametagSprite(p.name||"Player");
   nametagObj.sprite.position.set(0,2.2,0); group.add(nametagObj.sprite);
@@ -420,6 +428,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
