@@ -203,64 +203,55 @@ function step(dt) {
     if (keys['KeyD']) move.add(right);
     if (move.length() > 0) move.normalize().multiplyScalar(5 * dt);
 
-    // Apply horizontal movement first (before vertical to avoid sticking)
-    local.pos.add(move);
+    // Gravity
+    local.vel.y += -20 * dt;
 
+    // Apply movement
+    local.pos.add(move);
+    local.pos.add(local.vel.clone().multiplyScalar(dt));
+
+    // Player hitbox
     const playerHeight = 2.5;
     const halfHeight = playerHeight / 2;
     const radius = 0.4;
 
-    // Gravity
-    local.vel.y += -20 * dt;
-    local.pos.y += local.vel.y * dt;
-
     local.onGround = false;
 
-    // --- VERTICAL COLLISIONS ---
     blocks.forEach(b => {
         const min = b.position.clone().subScalar(0.5);
         const max = b.position.clone().addScalar(0.5);
 
         const bottom = local.pos.y - halfHeight;
         const top = local.pos.y + halfHeight;
+        const px = local.pos.x;
+        const pz = local.pos.z;
 
-        const overlapX = local.pos.x + radius > min.x && local.pos.x - radius < max.x;
-        const overlapZ = local.pos.z + radius > min.z && local.pos.z - radius < max.z;
-
-        if (overlapX && overlapZ) {
+        // --- VERTICAL COLLISIONS ---
+        if (px + radius > min.x && px - radius < max.x &&
+            pz + radius > min.z && pz - radius < max.z) {
             // Landing on top
             if (local.vel.y <= 0 && bottom < max.y && bottom > min.y) {
                 local.pos.y = max.y + halfHeight;
                 local.vel.y = 0;
                 local.onGround = true;
             }
-            // Hitting ceiling
+            // Hitting the bottom
             else if (local.vel.y > 0 && top > min.y && top < max.y) {
                 local.pos.y = min.y - halfHeight;
                 local.vel.y = 0;
             }
         }
-    });
 
-    // --- HORIZONTAL COLLISIONS ---
-    blocks.forEach(b => {
-        const min = b.position.clone().subScalar(0.5);
-        const max = b.position.clone().addScalar(0.5);
-
-        const bottom = local.pos.y - halfHeight;
-        const top = local.pos.y + halfHeight;
-
-        const overlapY = bottom < max.y && top > min.y;
-
-        if (overlapY) {
+        // --- HORIZONTAL COLLISIONS (X/Z) ---
+        if (top > min.y && bottom < max.y) {
             // X-axis
-            if (local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
-                if (local.pos.x < b.position.x) local.pos.x = min.x - radius;
+            if (px + radius > min.x && px - radius < max.x) {
+                if (px < b.position.x) local.pos.x = min.x - radius;
                 else local.pos.x = max.x + radius;
             }
             // Z-axis
-            if (local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
-                if (local.pos.z < b.position.z) local.pos.z = min.z - radius;
+            if (pz + radius > min.z && pz - radius < max.z) {
+                if (pz < b.position.z) local.pos.z = min.z - radius;
                 else local.pos.z = max.z + radius;
             }
         }
@@ -269,9 +260,8 @@ function step(dt) {
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
 
-    // --- ANIMATION ---
-    const moveLength = move.length();
-    if (moveLength > 0) {
+    // Animation
+    if (move.length() > 0) {
         const targetYaw = Math.atan2(move.x, move.z);
         local.yaw += (targetYaw - local.yaw) * 0.2;
         local.walkTime += dt * 6;
@@ -284,10 +274,11 @@ function step(dt) {
         local.walkTime = 0;
     }
 
-    // --- UPDATE MESH & CAMERA ---
+    // Update mesh position
     local.mesh.group.position.copy(local.pos);
     local.mesh.group.rotation.y = local.yaw;
 
+    // Camera
     const camTarget = local.pos.clone().add(new THREE.Vector3(0, 1.2, 0));
     camera.position.set(
         camTarget.x + Math.sin(local.cam.yaw) * local.cam.dist * Math.cos(local.cam.pitch),
@@ -296,11 +287,9 @@ function step(dt) {
     );
     camera.lookAt(camTarget);
 
-    // --- EMIT POSITION ---
+    // Emit position to server
     socket.emit('move', { x: local.pos.x, y: local.pos.y, z: local.pos.z, yaw: local.yaw, name: local.name });
 }
-
-
 
 function updatePreviewBlock() {
     if (!activeTool) {
@@ -376,6 +365,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
