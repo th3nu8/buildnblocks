@@ -262,6 +262,13 @@ function step(dt) {
     local.vel.y += -20 * dt;
     local.pos.y += local.vel.y * dt;
 
+    if (local.health <= 0) {
+      // Respawn in the middle of the map
+      local.pos.set(0, 2.5, 0);   // 2.5 is player height offset
+      local.vel.set(0, 0, 0);
+      local.health = 100;          // reset health
+    }
+
     // Vertical collisions
     const playerHeight = 2.5;
     const halfHeight = playerHeight / 2;
@@ -407,6 +414,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
