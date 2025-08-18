@@ -206,11 +206,9 @@ function step(dt) {
     // Gravity
     local.vel.y += -20 * dt;
 
-    // Apply movement
-    local.pos.add(move);
-    local.pos.add(local.vel.clone().multiplyScalar(dt));
+    // Predict new position
+    const nextPos = local.pos.clone().add(move).add(local.vel.clone().multiplyScalar(dt));
 
-    // Player hitbox
     const playerHeight = 2.5;
     const halfHeight = playerHeight / 2;
     const radius = 0.4;
@@ -221,48 +219,53 @@ function step(dt) {
         const min = b.position.clone().subScalar(0.5);
         const max = b.position.clone().addScalar(0.5);
 
-        const bottom = local.pos.y - halfHeight;
-        const top = local.pos.y + halfHeight;
-        const px = local.pos.x;
-        const pz = local.pos.z;
+        // Horizontal overlap
+        if (nextPos.x + radius > min.x && nextPos.x - radius < max.x &&
+            nextPos.z + radius > min.z && nextPos.z - radius < max.z) {
 
-        // VERTICAL COLLISIONS
-        if (px + radius > min.x && px - radius < max.x &&
-            pz + radius > min.z && pz - radius < max.z) {
+            // Check Y-axis (swept collision)
+            const bottom = nextPos.y - halfHeight;
+            const top = nextPos.y + halfHeight;
 
-            // Landing on top
-            if (local.vel.y <= 0 && bottom < max.y && bottom > min.y - 0.1) {
-                local.pos.y = max.y + halfHeight;
+            const prevBottom = local.pos.y - halfHeight;
+            const prevTop = local.pos.y + halfHeight;
+
+            // Falling down
+            if (local.vel.y <= 0 && prevBottom >= max.y && bottom < max.y) {
+                nextPos.y = max.y + halfHeight;
                 local.vel.y = 0;
                 local.onGround = true;
             }
-            // Hitting the bottom
-            else if (local.vel.y > 0 && top > min.y && top < max.y + 0.1) {
-                local.pos.y = min.y - halfHeight;
+            // Moving up
+            else if (local.vel.y > 0 && prevTop <= min.y && top > min.y) {
+                nextPos.y = min.y - halfHeight;
                 local.vel.y = 0;
             }
-        }
 
-        // HORIZONTAL COLLISIONS (X/Z)
-        if (top > min.y && bottom < max.y) {
-            // X-axis
-            if (px + radius > min.x && px - radius < max.x) {
-                if (px < b.position.x) local.pos.x = min.x - radius;
-                else local.pos.x = max.x + radius;
-            }
-            // Z-axis
-            if (pz + radius > min.z && pz - radius < max.z) {
-                if (pz < b.position.z) local.pos.z = min.z - radius;
-                else local.pos.z = max.z + radius;
+            // Horizontal collisions X
+            if (top > min.y && bottom < max.y) {
+                if (nextPos.x + radius > min.x && nextPos.x - radius < max.x) {
+                    if (nextPos.x < b.position.x) nextPos.x = min.x - radius;
+                    else nextPos.x = max.x + radius;
+                }
+                // Horizontal collisions Z
+                if (nextPos.z + radius > min.z && nextPos.z - radius < max.z) {
+                    if (nextPos.z < b.position.z) nextPos.z = min.z - radius;
+                    else nextPos.z = max.z + radius;
+                }
             }
         }
     });
 
+    // Apply predicted position
+    local.pos.copy(nextPos);
+
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
 
-    // Animation
-    if (move.length() > 0) {
+    // Animation & mesh update
+    const moveLen = move.length();
+    if (moveLen > 0) {
         const targetYaw = Math.atan2(move.x, move.z);
         local.yaw += (targetYaw - local.yaw) * 0.2;
         local.walkTime += dt * 6;
@@ -275,7 +278,6 @@ function step(dt) {
         local.walkTime = 0;
     }
 
-    // Update mesh position
     local.mesh.group.position.copy(local.pos);
     local.mesh.group.rotation.y = local.yaw;
 
@@ -288,7 +290,7 @@ function step(dt) {
     );
     camera.lookAt(camTarget);
 
-    // Emit position to server
+    // Emit position
     socket.emit('move', { x: local.pos.x, y: local.pos.y, z: local.pos.z, yaw: local.yaw, name: local.name });
 }
 
@@ -366,6 +368,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
