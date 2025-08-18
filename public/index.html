@@ -133,8 +133,29 @@ function updatePlayerList(){
   let html=`Players:<br>${local.name} (You)<br>`;
   others.forEach(p=>html+=p.name+'<br>'); playerList.innerHTML=html;
 }
-socket.on('connect',()=>{ local.id=socket.id; statusEl.textContent=`online • ${local.name}`; updatePlayerList(); });
-socket.on('init',payload=>{ payload.blocks.forEach(b=>makeBlock(b.x,b.y,b.z)); for(const [id,p] of Object.entries(payload.players)) if(id!==local.id) spawnOther(id,p); });
+socket.on('connect', () => {
+    local.id = socket.id;
+    statusEl.textContent = `online • ${local.name}`;
+    updatePlayerList();
+
+    // Send initial join info
+    socket.emit('join', {
+        x: local.pos.x,
+        y: local.pos.y,
+        z: local.pos.z,
+        yaw: local.yaw,
+        name: local.name
+    });
+});
+
+socket.on('init', payload => {
+    payload.blocks.forEach(b => makeBlock(b.x, b.y, b.z));
+
+    for (const [id, p] of Object.entries(payload.players)) {
+        if (id !== local.id) spawnOther(id, p);
+    }
+});
+
 socket.on('player-join',({id,x,y,z,name})=>{ if(id!==local.id) spawnOther(id,{x,y,z,name}); });
 socket.on('player-leave',({id})=>removeOther(id));
 socket.on('player-update',({id,x,y,z,yaw,name})=>{
@@ -271,3 +292,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
