@@ -44,71 +44,11 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 <div id="healthContainer">
   <div id="healthBar"></div>
 </div>
-<!-- AUTH MODAL -->
-<div id="authContainer">
-  <h3>Login / Signup</h3>
-  <input id="emailInput" placeholder="Email">
-  <input id="passwordInput" placeholder="Password" type="password">
-  <button id="signupBtn" type="button">Sign Up</button>
-  <button id="loginBtn" type="button">Login</button>
-  <div id="authStatus"></div>
-</div>
 
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
-/* ---------- AUTH ---------- */
-const authContainer = document.getElementById('authContainer');
-const emailInput = document.getElementById('email');
-const passwordInput = document.getElementById('password');
-const signupBtn = document.getElementById('signupBtn');
-const loginBtn = document.getElementById('loginBtn');
-const authStatus = document.getElementById('authStatus');
-
-let localId = null;
-
-async function signup() {
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
-
-    const res = await fetch('/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    alert(data.message);
-}
-
-async function login() {
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
-
-    const res = await fetch('/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    alert(data.message);
-
-    if(data.success){
-        // set your logged-in player id here
-        local.id = data.playerId;
-    }
-}
-
-document.getElementById('signupBtn').onclick = signup;
-document.getElementById('loginBtn').onclick = login;
-
-function startGame(id){
-    localId = id;
-    authContainer.style.display='none';
-    initSocket();
-}
-
-
 /* ---------- THREE.JS SETUP ---------- */
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x88ccff);
@@ -239,62 +179,28 @@ function updatePlayerList(){
   let html=`Players:<br>${local.name} (You)<br>`;
   others.forEach(p=>html+=p.name+'<br>'); playerList.innerHTML=html;
 }
-let socket;
+socket.on('connect', () => {
+    local.id = socket.id;
+    statusEl.textContent = `online • ${local.name}`;
+    updatePlayerList();
 
-function initSocket() {
-    socket = io();
-
-    const statusEl = document.getElementById('status');
-    const nameInputEl = document.getElementById('nameInput');
-
-    // Authenticate with server
-    socket.emit('auth', {id: localId, name: nameInputEl.value || 'Player'});
-
-    // When connected
-    socket.on('connect', () => {
-        console.log('Connected to server');
-        statusEl.textContent = `online • ${nameInputEl.value || 'Player'}`;
+    // Send initial join info
+    socket.emit('join', {
+        x: local.pos.x,
+        y: local.pos.y,
+        z: local.pos.z,
+        yaw: local.yaw,
+        name: local.name
     });
+});
 
-    // Initialize game with existing blocks and players
-    socket.on('init', payload => {
-        payload.blocks.forEach(b => makeBlock(b.x, b.y, b.z));
-        for (const [id, p] of Object.entries(payload.players)) {
-            if (id !== localId) spawnOther(id, p);
-        }
-    });
+socket.on('init', payload => {
+    payload.blocks.forEach(b => makeBlock(b.x, b.y, b.z));
 
-    // Player joined
-    socket.on('player-join', ({id, x, y, z, name}) => {
-        if(id !== localId) spawnOther(id, {x, y, z, name});
-    });
-
-    // Player left
-    socket.on('player-leave', ({id}) => removeOther(id));
-
-    // Player updates
-    socket.on('player-update', ({id, x, y, z, yaw, name}) => {
-        if(id === localId) return;
-        const p = others.get(id);
-        if(!p) return;
-        if(x !== undefined) p.pos.x = x;
-        if(y !== undefined) p.pos.y = y;
-        if(z !== undefined) p.pos.z = z;
-        if(yaw !== undefined) p.group.rotation.y = yaw;
-        if(name !== undefined) {
-            p.name = name;
-            const ctx = p.nametag.ctx;
-            ctx.clearRect(0,0,256,64);
-            ctx.fillText(name,128,48);
-            p.nametag.texture.needsUpdate = true;
-        }
-        updatePlayerList();
-    });
-
-    // Build / Remove blocks
-    socket.on('build', ({x, y, z}) => makeBlock(x, y, z));
-    socket.on('remove', ({x, y, z}) => removeBlockAt(x, y, z));
-}
+    for (const [id, p] of Object.entries(payload.players)) {
+        if (id !== local.id) spawnOther(id, p);
+    }
+});
 
 socket.on('player-join',({id,x,y,z,name})=>{ if(id!==local.id) spawnOther(id,{x,y,z,name}); });
 socket.on('player-leave',({id})=>removeOther(id));
@@ -514,9 +420,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
 
 
 
