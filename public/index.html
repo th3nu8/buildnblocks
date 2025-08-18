@@ -205,15 +205,15 @@ function step(dt){
     local.onGround=false;
     blocks.forEach(b=>{
         const min=b.position.clone().subScalar(0.5), max=b.position.clone().addScalar(0.5);
-        const px=local.pos.x, py=local.pos.y-0.9, pz=local.pos.z;
+        const px=local.pos.x, py=local.pos.y-1.2, pz=local.pos.z;
         const radius=0.5;
         const dx=Math.max(min.x,Math.min(px,min.x+1))-px;
         const dy=Math.max(min.y,Math.min(py,min.y+1))-py;
         const dz=Math.max(min.z,Math.min(pz,min.z+1))-pz;
 
-        if(Math.abs(dx)<=radius && Math.abs(dy)<=2.5 && Math.abs(dz)<=radius){
+        if(Math.abs(dx)<=radius && Math.abs(dy)<=1.2 && Math.abs(dz)<=radius){
             // vertical collision
-            if(py<=max.y && py>=min.y){ local.pos.y=max.y+0.9; local.vel.y=0; local.onGround=true; }
+            if(py<=max.y && py>=min.y){ local.pos.y=max.y+1.2; local.vel.y=0; local.onGround=true; }
             // side X
             if(px+radius>min.x && px-radius<max.x){ if(px>min.x && px<max.x){ local.pos.x=px-dx; } }
             // side Z
@@ -230,7 +230,7 @@ function step(dt){
 
     local.mesh.group.position.copy(local.pos); local.mesh.group.rotation.y=local.yaw;
 
-    const camTarget=local.pos.clone().add(new THREE.Vector3(0,2.5,0));
+    const camTarget=local.pos.clone().add(new THREE.Vector3(0,1.2,0));
     camera.position.set(camTarget.x+Math.sin(local.cam.yaw)*local.cam.dist*Math.cos(local.cam.pitch),
                         camTarget.y+Math.sin(local.cam.pitch)*local.cam.dist+1.5,
                         camTarget.z+Math.cos(local.cam.yaw)*local.cam.dist*Math.cos(local.cam.pitch));
@@ -315,6 +315,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
