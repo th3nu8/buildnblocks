@@ -1,135 +1,134 @@
+// server.js
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
+const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
-
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
-
-let players = {};
-if (fs.existsSync('players.json')) {
-    players = JSON.parse(fs.readFileSync('players.json'));
-}
+const io = require('socket.io')(server);
 
 app.use(express.json());
-app.use(express.static('public')); // serve index.html, stud.png, etc.
-// SIGN UP
+app.use(express.static('public')); // serves index.html and assets
+
+// ---------- ACCOUNT MANAGEMENT ----------
+const accountsFile = path.join(__dirname, 'players.json');
+let accounts = {}; // stores registered accounts: email -> { password, id }
+
+if (fs.existsSync(accountsFile)) {
+    accounts = JSON.parse(fs.readFileSync(accountsFile));
+}
+
+// Signup route
 app.post('/signup', (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.json({ success: false, message: 'Missing email or password' });
 
-    if (players[email]) return res.json({ success: false, message: 'Email already exists' });
+    if (accounts[email]) return res.json({ success: false, message: 'Email already registered' });
 
-    const hashed = bcrypt.hashSync(password, 8);
-    const playerId = Date.now().toString(); // unique player ID
-    players[email] = { password: hashed, id: playerId };
+    const hashed = bcrypt.hashSync(password, 10);
+    const playerId = uuidv4();
+    accounts[email] = { password: hashed, id: playerId };
 
-    fs.writeFileSync('players.json', JSON.stringify(players, null, 2));
-    res.json({ success: true, message: 'Signed up!', playerId });
+    fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2));
+    res.json({ success: true, id: playerId });
 });
 
-// LOGIN
+// Login route
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
+    if (!email || !password) return res.json({ success: false, message: 'Missing email or password' });
 
-    if (!players[email]) return res.json({ success: false, message: 'No account with that email' });
+    const account = accounts[email];
+    if (!account) return res.json({ success: false, message: 'Email not registered' });
+    if (!bcrypt.compareSync(password, account.password)) return res.json({ success: false, message: 'Wrong password' });
 
-    if (bcrypt.compareSync(password, players[email].password)) {
-        res.json({ success: true, message: 'Logged in!', playerId: players[email].id });
-    } else {
-        res.json({ success: false, message: 'Wrong password' });
-    }
+    res.json({ success: true, id: account.id });
 });
 
+// ---------- MULTIPLAYER ----------
+const blocks = []; // All blocks in the world
+const blockIndex = new Map();
+const indestructibleBlocks = new Set();
+const players = {}; // currently connected players: socketId -> { x,y,z,yaw,name }
 
-const USERS_FILE = path.join(__dirname, 'users.json');
-
-function loadUsers() {
-    if (!fs.existsSync(USERS_FILE)) return {};
-    return JSON.parse(fs.readFileSync(USERS_FILE));
+function keyOf(x, y, z) {
+    return `${x}|${y}|${z}`;
 }
 
-function saveUsers(users) {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+function makeBlock(x, y, z, indestructible = false) {
+    const k = keyOf(x, y, z);
+    if (blockIndex.has(k)) return;
+    const block = { x, y, z };
+    blocks.push(block);
+    blockIndex.set(k, block);
+    if (indestructible) indestructibleBlocks.add(k);
 }
 
-function generateId() {
-    return 'p_' + Math.random().toString(36).substr(2, 9);
+function removeBlock(x, y, z) {
+    const k = keyOf(x, y, z);
+    if (!blockIndex.has(k) || indestructibleBlocks.has(k)) return false;
+    blockIndex.delete(k);
+    const idx = blocks.findIndex(b => b.x === x && b.y === y && b.z === z);
+    if (idx !== -1) blocks.splice(idx, 1);
+    return true;
 }
 
-// ----------------- AUTH ENDPOINTS -----------------
-app.post('/signup', async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
+// create initial ground
+for (let x = -25; x < 25; x++) for (let z = -25; z < 25; z++) makeBlock(x, 0, z, true);
 
-    const users = loadUsers();
-    if (users[email]) return res.status(400).json({ error: 'Email already exists' });
+// ---------- SOCKET.IO ----------
+io.on('connection', (socket) => {
+    console.log('Player connected:', socket.id);
 
-    const hash = await bcrypt.hash(password, 10);
-    const id = generateId();
-    users[email] = { password: hash, id };
-    saveUsers(users);
-    res.json({ success: true, id });
-});
+    // Send current world state
+    socket.emit('init', { blocks, players });
 
-app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    const users = loadUsers();
-    if (!users[email]) return res.status(400).json({ error: 'Email not found' });
-
-    const valid = await bcrypt.compare(password, users[email].password);
-    if (!valid) return res.status(400).json({ error: 'Invalid password' });
-
-    res.json({ success: true, id: users[email].id });
-});
-
-// ----------------- SOCKET.IO -----------------
-const players = {}; // playerId -> {x,y,z,yaw,name}
-
-io.on('connection', socket => {
-    let playerId = null;
-
-    socket.on('auth', (data) => {
-        playerId = data.id;
-        players[playerId] = { x:0, y:2.5, z:0, yaw:0, name: data.name || 'Player' };
-        // send initial state
-        socket.emit('init', { blocks: [], players });
-        socket.broadcast.emit('player-join', { id: playerId, x:0, y:2.5, z:0, name: players[playerId].name });
+    // Player join
+    socket.on('join', (data) => {
+        players[socket.id] = {
+            x: data.x || 0,
+            y: data.y || 2.5,
+            z: data.z || 0,
+            yaw: data.yaw || 0,
+            name: data.name || 'Player'
+        };
+        socket.broadcast.emit('player-join', { id: socket.id, ...players[socket.id] });
     });
 
+    // Move/update
     socket.on('move', (data) => {
-        if (!playerId) return;
-        players[playerId] = { ...players[playerId], ...data };
-        socket.broadcast.emit('player-update', { id: playerId, ...data });
+        if (!players[socket.id]) return;
+        Object.assign(players[socket.id], data);
+        socket.broadcast.emit('player-update', { id: socket.id, ...data });
     });
 
+    // Build
     socket.on('build', (data) => {
-        if (!playerId) return;
-        io.emit('build', data);
+        makeBlock(data.x, data.y, data.z);
+        socket.broadcast.emit('build', data);
     });
 
+    // Remove
     socket.on('remove', (data) => {
-        if (!playerId) return;
-        io.emit('remove', data);
+        if (removeBlock(data.x, data.y, data.z)) socket.broadcast.emit('remove', data);
     });
 
-    socket.on('name-change', (data) => {
-        if (!playerId) return;
-        players[playerId].name = data.name;
-        socket.broadcast.emit('player-update', { id: playerId, name: data.name });
+    // Name change
+    socket.on('name-change', ({ name }) => {
+        if (!players[socket.id]) return;
+        players[socket.id].name = name;
+        socket.broadcast.emit('player-update', { id: socket.id, name });
     });
 
+    // Disconnect
     socket.on('disconnect', () => {
-        if (!playerId) return;
-        delete players[playerId];
-        socket.broadcast.emit('player-leave', { id: playerId });
+        delete players[socket.id];
+        socket.broadcast.emit('player-leave', { id: socket.id });
+        console.log('Player disconnected:', socket.id);
     });
 });
 
-// ----------------- START SERVER -----------------
-server.listen(3000, () => console.log('Server running on http://localhost:3000'));
-
-
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
