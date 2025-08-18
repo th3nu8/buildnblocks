@@ -215,15 +215,14 @@ function step(dt){
 
   // --- COLLISIONS ---
   const radius = 0.4;
-  const halfHeight = 1.5 / 2;
   local.onGround = false;
 
   blocks.forEach(b => {
     const min = b.position.clone().subScalar(0.5);
     const max = b.position.clone().addScalar(0.5);
 
-    const bottom = local.pos.y - halfHeight;
-    const top = local.pos.y + halfHeight;
+    const bottom = local.pos.y;
+    const top = local.pos.y;
     const px = local.pos.x;
     const pz = local.pos.z;
 
@@ -235,13 +234,13 @@ function step(dt){
       if(bottom < max.y && top > min.y){
         // Hitting from above (landing)
         if(local.vel.y <= 0 && bottom < max.y && bottom > min.y){
-          local.pos.y = max.y + halfHeight;
+          local.pos.y = max.y;
           local.vel.y = 0;
           local.onGround = true;
         }
         // Hitting from below (ceiling)
         else if(local.vel.y > 0 && top > min.y && top < max.y){
-          local.pos.y = min.y - halfHeight;
+          local.pos.y = min.y;
           local.vel.y = 0;
         }
       }
@@ -335,6 +334,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
