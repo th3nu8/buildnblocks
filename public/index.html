@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BuildNBlocks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
+#toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
+.tool{padding:6px 12px;border:1px solid #fff;border-radius:4px;cursor:pointer;user-select:none;}
+.tool.active{background:#4cc3ff;color:#000;}
+#status{position:fixed;top:8px;left:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
+#nameInput{position:fixed;top:8px;right:8px;z-index:5;padding:4px;}
+#playerList{position:fixed;top:50px;right:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <div class="tool" id="tool-build">Build (1)</div>
+  <div class="tool" id="tool-remove">Remove (2)</div>
+</div>
+<div id="status">offline</div>
+<input id="nameInput" placeholder="Your name"/>
+<div id="playerList">Players:</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+/* ---------- THREE.JS SETUP ---------- */
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x88ccff);
+const camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.1,200);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x444444,0.8));
+const sun=new THREE.DirectionalLight(0xffffff,0.8);
+sun.position.set(5,10,5);
+scene.add(sun);
+
+const textureLoader=new THREE.TextureLoader();
+const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);});
+
+/* ---------- BLOCKS ---------- */
+const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
+function keyOf(x,y,z){return `${x}|${y}|${z}`;}
+function makeBlock(x,y,z,indestructible=false){
+  const k=keyOf(x,y,z); if(blockIndex.has(k)) return;
+  const b=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({map:studTexture}));
+  b.position.set(x+0.5,y+0.5,z+0.5); scene.add(b); blocks.push(b); blockIndex.set(k,b);
+  if(indestructible) indestructibleBlocks.add(b); return b;
+}
+function removeBlockAt(x,y,z){
+  const k=keyOf(x,y,z), m=blockIndex.get(k); if(!m||indestructibleBlocks.has(m)) return false;
+  scene.remove(m); blocks.splice(blocks.indexOf(m),1); blockIndex.delete(k); return true;
+}
+for(let x=-25;x<25;x++)for(let z=-25;z<25;z++)makeBlock(x,0,z,true);
+
+/* ---------- AVATAR ---------- */
+function makeAvatar(colorTorso=0x4cc3ff,colorLeg=0x3333ff){
+  const g=new THREE.Group();
+  const torso=new THREE.Mesh(new THREE.BoxGeometry(1,0.9,0.5),new THREE.MeshStandardMaterial({color:colorTorso})); torso.position.y=0.4; g.add(torso);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.8,0.8),new THREE.MeshStandardMaterial({color:0xffe08a})); head.position.y=1.25; g.add(head);
+  const shoulderL=new THREE.Group(); shoulderL.position.set(-0.65,1.1,0);
+  const armL=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.9,0.4),new THREE.MeshStandardMaterial({color:colorTorso})); armL.position.y=-0.7; shoulderL.add(armL); g.add(shoulderL);
+  const shoulderR=new THREE.Group(); shoulderR.position.set(0.65,1.1,0);
+  const armR=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.9,0.4),new THREE.MeshStandardMaterial({color:colorTorso})); armR.position.y=-0.7; shoulderR.add(armR); g.add(shoulderR);
+  const hipL=new THREE.Group(); hipL.position.set(-0.25,0,0);
+  const legL=new THREE.Mesh(new THREE.BoxGeometry(0.4,1,0.4),new THREE.MeshStandardMaterial({color:colorLeg})); legL.position.y=-0.5; hipL.add(legL); g.add(hipL);
+  const hipR=new THREE.Group(); hipR.position.set(0.25,0,0);
+  const legR=new THREE.Mesh(new THREE.BoxGeometry(0.4,1,0.4),new THREE.MeshStandardMaterial({color:colorLeg})); legR.position.y=-0.5; hipR.add(legR); g.add(hipR);
+  return {group:g,parts:{shoulderL,shoulderR,hipL,hipR}};
+}
+
+/* ---------- LOCAL PLAYER ---------- */
+const local={id:null,colorTorso:0x4cc3ff,colorLeg:0x3333ff,pos:new THREE.Vector3(0,2.5,0),vel:new THREE.Vector3(),onGround:false,yaw:0,walkTime:0,cam:{yaw:0,pitch:0,dist:6},mesh:null,name:"Player"};
+const {group,parts}=makeAvatar(local.colorTorso,local.colorLeg);
+local.mesh={group,...parts};
+scene.add(group);
+
+/* ---------- INPUT ---------- */
+const keys={}; window.addEventListener('keydown',e=>keys[e.code]=true); window.addEventListener('keyup',e=>keys[e.code]=false);
+let rotating=false;
+window.addEventListener('contextmenu',e=>e.preventDefault());
+window.addEventListener('mousedown',e=>{ if(e.button===2){rotating=true;document.body.style.cursor='none'; if(renderer.domElement.requestPointerLock) renderer.domElement.requestPointerLock();} });
+window.addEventListener('mouseup',e=>{ if(e.button===2){rotating=false;document.body.style.cursor='default'; if(document.exitPointerLock) document.exitPointerLock();} });
+document.addEventListener('mousemove',e=>{ if(rotating){ local.cam.yaw-=e.movementX*0.005; local.cam.pitch+=e.movementY*0.005; local.cam.pitch=Math.max(-1.2,Math.min(1.2,local.cam.pitch)); } });
+
+/* ---------- TOOLS ---------- */
+let activeTool=null;
+const toolBuild=document.getElementById('tool-build'), toolRemove=document.getElementById('tool-remove');
+function setTool(tool){ activeTool=(activeTool===tool)? null:tool; toolBuild.classList.toggle('active',activeTool==='build'); toolRemove.classList.toggle('active',activeTool==='remove'); }
+toolBuild.onclick=()=>setTool('build'); toolRemove.onclick=()=>setTool('remove');
+window.addEventListener('keydown',e=>{ if(e.code==='Digit1') setTool('build'); if(e.code==='Digit2') setTool('remove'); });
+const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
+window.addEventListener('pointerdown',e=>{
+  if(e.button!==0||!activeTool)return;
+  mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(blocks);
+  if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
+  const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
+  if(activeTool==='build'){ if(!blockIndex.has(keyOf(x,y,z))){ makeBlock(x,y,z); socket.emit('build',{x,y,z}); } }
+  else if(activeTool==='remove'){ const bx=Math.floor(hit.object.position.x-0.5),by=Math.floor(hit.object.position.y-0.5),bz=Math.floor(hit.object.position.z-0.5); if(removeBlockAt(bx,by,bz)) socket.emit('remove',{x:bx,y:by,z:bz}); }
+}});
+
+/* ---------- SOCKET.IO ---------- */
+const socket=io(), statusEl=document.getElementById('status'), nameInput=document.getElementById('nameInput'), playerList=document.getElementById('playerList');
+nameInput.value=local.name;
+nameInput.addEventListener('change',()=>{ local.name=nameInput.value; socket.emit('name-change',{name:local.name}); });
+
+const others=new Map();
+function makeNametagSprite(text){
+  const canvas=document.createElement('canvas'); canvas.width=256; canvas.height=64;
+  const ctx=canvas.getContext('2d'); ctx.font='28px sans-serif'; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.fillText(text,128,48);
+  const tex=new THREE.CanvasTexture(canvas); tex.needsUpdate=true;
+  const mat=new THREE.SpriteMaterial({map:tex,transparent:true});
+  const sprite=new THREE.Sprite(mat); sprite.scale.set(2,0.5,1); return {sprite,canvas,ctx,texture:tex};
+}
+
+function spawnOther(id,p){
+  if(others.has(id))return;
+  const {group,parts}=makeAvatar(0xff4444,0x3333ff);
+  group.position.set(p.x,p.y,p.z);
+  const nametagObj=makeNametagSprite(p.name||"Player");
+  nametagObj.sprite.position.set(0,2.2,0); group.add(nametagObj.sprite);
+  scene.add(group);
+  others.set(id,{group,...parts,nametag:nametagObj,pos:new THREE.Vector3(p.x,p.y,p.z),walkTime:0,name:p.name||"Player"});
+  updatePlayerList();
+}
+function removeOther(id){ const p=others.get(id); if(!p)return; scene.remove(p.group); others.delete(id); updatePlayerList();}
+function updatePlayerList(){
+  let html=`Players:<br>${local.name} (You)<br>`;
+  others.forEach(p=>html+=p.name+'<br>'); playerList.innerHTML=html;
+}
+socket.on('connect',()=>{ local.id=socket.id; statusEl.textContent=`online • ${local.name}`; updatePlayerList(); });
+socket.on('init',payload=>{ payload.blocks.forEach(b=>makeBlock(b.x,b.y,b.z)); for(const [id,p] of Object.entries(payload.players)) if(id!==local.id) spawnOther(id,p); });
+socket.on('player-join',({id,x,y,z,name})=>{ if(id!==local.id) spawnOther(id,{x,y,z,name}); });
+socket.on('player-leave',({id})=>removeOther(id));
+socket.on('player-update',({id,x,y,z,yaw,name})=>{
+  if(id===local.id){ if(name) local.name=name; return; }
+  const p=others.get(id); if(!p) return;
+  if(x!==undefined)p.pos.x=x; if(y!==undefined)p.pos.y=y; if(z!==undefined)p.pos.z=z;
+  if(yaw!==undefined)p.group.rotation.y=yaw;
+  if(name!==undefined){ p.name=name; const ctx=p.nametag.ctx; ctx.clearRect(0,0,256,64); ctx.fillText(name,128,48); p.nametag.texture.needsUpdate=true; }
+  updatePlayerList();
+});
+
+/* ---------- BUILD/REMOVE LISTEN ---------- */
+socket.on('build',({x,y,z})=>{ makeBlock(x,y,z); });
+socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
+
+/* ---------- PHYSICS & ANIMATION ---------- */
+function step(dt){
+  const forward = new THREE.Vector3(-Math.sin(local.cam.yaw),0,-Math.cos(local.cam.yaw));
+  const right = new THREE.Vector3(Math.cos(local.cam.yaw),0,-Math.sin(local.cam.yaw));
+  let move = new THREE.Vector3();
+  if(keys['KeyW']) move.add(forward);
+  if(keys['KeyS']) move.sub(forward);
+  if(keys['KeyA']) move.sub(right);
+  if(keys['KeyD']) move.add(right);
+  if(move.length() > 0) move.normalize().multiplyScalar(5*dt);
+
+  // Gravity
+  local.vel.y += -20*dt;
+
+  // Prepare next position
+  let nextX = local.pos.x + move.x;
+  let nextZ = local.pos.z + move.z;
+  let nextY = local.pos.y + local.vel.y*dt;
+
+  const radius = 0.4, height = 0.9, epsilon = 0.001;
+
+  /* ---------- COLLISIONS X ---------- */
+  for(const b of blocks){
+    const min = b.position.clone().subScalar(0.5);
+    const max = b.position.clone().addScalar(0.5);
+    if(local.pos.y - height < max.y && local.pos.y > min.y && local.pos.z + radius > min.z && local.pos.z - radius < max.z){
+      if(nextX + radius > min.x && nextX - radius < max.x){
+        if(move.x > 0) nextX = min.x - radius - epsilon;
+        else nextX = max.x + radius + epsilon;
+      }
+    }
+  }
+  local.pos.x = nextX;
+
+  /* ---------- COLLISIONS Z ---------- */
+  for(const b of blocks){
+    const min = b.position.clone().subScalar(0.5);
+    const max = b.position.clone().addScalar(0.5);
+    if(local.pos.y - height < max.y && local.pos.y > min.y && local.pos.x + radius > min.x && local.pos.x - radius < max.x){
+      if(nextZ + radius > min.z && nextZ - radius < max.z){
+        if(move.z > 0) nextZ = min.z - radius - epsilon;
+        else nextZ = max.z + radius + epsilon;
+      }
+    }
+  }
+  local.pos.z = nextZ;
+
+  /* ---------- COLLISIONS Y (FLOOR & CEILING) ---------- */
+  local.onGround = false;
+  for(const b of blocks){
+    const min = b.position.clone().subScalar(0.5);
+    const max = b.position.clone().addScalar(0.5);
+    if(local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+       local.pos.z + radius > min.z && local.pos.z - radius < max.z){
+      // Floor
+      if(local.vel.y <= 0 && nextY - height <= max.y && local.pos.y - height >= max.y){
+        nextY = max.y + height + epsilon;
+        local.vel.y = 0;
+        local.onGround = true;
+      }
+      // Ceiling
+      if(local.vel.y > 0 && nextY >= min.y && local.pos.y <= min.y){
+        nextY = min.y - epsilon;
+        local.vel.y = 0;
+      }
+    }
+  }
+  local.pos.y = nextY;
+
+  // Jump
+  if(local.onGround && keys['Space']) local.vel.y = 12;
+
+  // Walk animation
+  if(move.length() > 0){
+    const targetYaw = Math.atan2(move.x, move.z);
+    local.yaw += (targetYaw - local.yaw) * 0.2;
+    local.walkTime += dt*6;
+    const swing = Math.sin(local.walkTime)*0.5;
+    local.mesh.shoulderL.rotation.x = swing;
+    local.mesh.shoulderR.rotation.x = -swing;
+    local.mesh.hipL.rotation.x = -swing;
+    local.mesh.hipR.rotation.x = swing;
+  } else local.walkTime = 0;
+
+  // Apply final position
+  local.mesh.group.position.copy(local.pos);
+  local.mesh.group.rotation.y = local.yaw;
+
+  // Camera
+  const camTarget = local.pos.clone().add(new THREE.Vector3(0,1.2,0));
+  camera.position.set(
+    camTarget.x + Math.sin(local.cam.yaw) * local.cam.dist * Math.cos(local.cam.pitch),
+    camTarget.y + Math.sin(local.cam.pitch) * local.cam.dist + 1.5,
+    camTarget.z + Math.cos(local.cam.yaw) * local.cam.dist * Math.cos(local.cam.pitch)
+  );
+  camera.lookAt(camTarget);
+
+  // Send position to server
+  socket.emit('move', {x: local.pos.x, y: local.pos.y, z: local.pos.z, yaw: local.yaw, name: local.name});
+}
+
+
+function animateOthers(dt){
+  others.forEach(p=>{
+    const move=new THREE.Vector3().subVectors(p.pos,p.group.position);
+    if(move.length()>0.01){ p.group.position.lerp(p.pos,0.2); const targetYaw=Math.atan2(move.x,move.z); p.group.rotation.y+=((targetYaw-p.group.rotation.y)*0.2);
+      p.walkTime+=(dt*6); const swing=Math.sin(p.walkTime)*0.5;
+      p.shoulderL.rotation.x=swing; p.shoulderR.rotation.x=-swing; p.hipL.rotation.x=-swing; p.hipR.rotation.x=swing;
+    } else p.walkTime=0;
+    p.nametag.sprite.quaternion.copy(camera.quaternion);
+  });
+}
+
+let last=performance.now();
+function animate(now){ requestAnimationFrame(animate); const dt=(now-last)/1000; last=now; step(dt); animateOthers(dt); renderer.render(scene,camera);}
+animate(last);
+
+window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
+</script>
+</body>
+</html>
