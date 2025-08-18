@@ -37,7 +37,6 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 <div id="toolbar">
   <div class="tool" id="tool-build">Build (1)</div>
   <div class="tool" id="tool-remove">Remove (2)</div>
-  <div class="tool" id="tool-color">Color (3)</div>
 </div>
 <div id="status">offline</div>
 <input id="nameInput" placeholder="Your name"/>
@@ -136,13 +135,7 @@ document.addEventListener('mousemove', e => {
 
 /* ---------- TOOLS ---------- */
 let activeTool=null;
-const toolBuild=document.getElementById('tool-build'), toolRemove=document.getElementById('tool-remove')
-document.getElementById("colorPicker").addEventListener("input", (e) => {
-  const val = e.target.value;
-  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-    currentColor = val;
-  }
-});
+const toolBuild=document.getElementById('tool-build'), toolRemove=document.getElementById('tool-remove');
 function setTool(tool){ activeTool=(activeTool===tool)? null:tool; toolBuild.classList.toggle('active',activeTool==='build'); toolRemove.classList.toggle('active',activeTool==='remove'); }
 toolBuild.onclick=()=>setTool('build'); toolRemove.onclick=()=>setTool('remove');
 window.addEventListener('keydown',e=>{ if(e.code==='Digit1') setTool('build'); if(e.code==='Digit2') setTool('remove'); });
@@ -154,17 +147,6 @@ window.addEventListener('pointerdown',e=>{
   if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
   if(activeTool==='build'){ if(!blockIndex.has(keyOf(x,y,z))){ makeBlock(x,y,z); socket.emit('build',{x,y,z}); } }
-  if (currentTool === "color") {
-  const block = getBlockAtClick(); // however you detect the clicked block
-  if (block) {
-    socket.emit("colorBlock", {
-      x: block.x,
-      y: block.y,
-      z: block.z,
-      color: currentColor
-    });
-  }
-}
   else if(activeTool==='remove'){ const bx=Math.floor(hit.object.position.x-0.5),by=Math.floor(hit.object.position.y-0.5),bz=Math.floor(hit.object.position.z-0.5); if(removeBlockAt(bx,by,bz)) socket.emit('remove',{x:bx,y:by,z:bz}); }
 }});
 
@@ -234,12 +216,6 @@ socket.on('player-update',({id,x,y,z,yaw,name})=>{
 /* ---------- BUILD/REMOVE LISTEN ---------- */
 socket.on('build',({x,y,z})=>{ makeBlock(x,y,z); });
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
-socket.on("colorBlock", (data) => {
-  const block = getBlockAt(data.x, data.y, data.z); 
-  if (block) {
-    block.material.color.set(data.color);
-  }
-});
 
 /* ---------- PHYSICS & ANIMATION ---------- */
 function step(dt) {
@@ -442,14 +418,8 @@ animate(last);
 
 window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
 </script>
-<div style="position: fixed; bottom: 10px; right: 10px; background: white; padding: 5px; border: 1px solid black;">
-  <label for="colorPicker">Hex:</label>
-  <input type="text" id="colorPicker" value="#ff0000" maxlength="7" style="width:80px;">
-</div>
 </body>
 </html>
-
-
 
 
 
