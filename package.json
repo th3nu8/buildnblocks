@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.1"
+    "socket.io": "^4.7.1",
     "bcryptjs": "^2.4.3"
   },
   "engines": {
@@ -18,4 +18,5 @@
   "author": "",
   "license": "ISC"
 }
+
 
