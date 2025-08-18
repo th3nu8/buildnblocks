@@ -3,7 +3,7 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 
 // Serve static files from the "public" folder
 app.use(express.static('public'));
@@ -48,15 +48,14 @@ io.on('connection', (socket) => {
     io.emit('remove', block);
   });
 
- // Handle disconnect
-socket.on('disconnect', () => {
-  console.log('User disconnected:', socket.id);
-  delete players[socket.id];           // Remove from server storage
-  io.emit('player-leave', { id: socket.id });  // Tell all clients to remove this player
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+    delete players[socket.id];
+    io.emit('player-leave', { id: socket.id });
+  });
 });
-
 
 http.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
