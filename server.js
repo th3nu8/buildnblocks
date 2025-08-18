@@ -48,14 +48,15 @@ io.on('connection', (socket) => {
     io.emit('remove', block);
   });
 
-  // Handle disconnect
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-    delete players[socket.id];
-    io.emit('player-leave', { id: socket.id });
-  });
+ // Handle disconnect
+socket.on('disconnect', () => {
+  console.log('User disconnected:', socket.id);
+  delete players[socket.id];           // Remove from server storage
+  io.emit('player-leave', { id: socket.id });  // Tell all clients to remove this player
 });
+
 
 http.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
