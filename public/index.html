@@ -93,6 +93,10 @@ let rotating=false;
 window.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('mousedown',e=>{ if(e.button===2){rotating=true;document.body.style.cursor='none'; if(renderer.domElement.requestPointerLock) renderer.domElement.requestPointerLock();} });
 window.addEventListener('mouseup',e=>{ if(e.button===2){rotating=false;document.body.style.cursor='default'; if(document.exitPointerLock) document.exitPointerLock();} });
+window.addEventListener('wheel', (e) => {
+    local.cam.dist -= e.deltaY * 0.01; // scroll sensitivity
+    local.cam.dist = Math.max(2, Math.min(15, local.cam.dist)); // clamp distance
+});
 document.addEventListener('mousemove', e => {
   if(rotating){ 
     local.cam.yaw -= e.movementX*0.005;
@@ -370,6 +374,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
