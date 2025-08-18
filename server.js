@@ -47,6 +47,9 @@ io.on('connection', (socket) => {
       io.emit('remove', data);
     }
   });
+  socket.on("colorBlock", (data) => {
+    io.emit("colorBlock", data);
+  });
 
   // Name change
   socket.on('name-change', ({ name }) => {
@@ -67,3 +70,4 @@ io.on('connection', (socket) => {
 http.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
