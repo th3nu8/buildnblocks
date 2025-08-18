@@ -289,7 +289,7 @@ function step(dt) {
 const meshHeight = 2.2; // actual height of the player mesh (torso + head)
 local.mesh.group.position.set(
     local.pos.x,
-    local.pos.y - (playerHeight / 2) + (meshHeight / 2),
+    local.pos.y - (playerHeight / 2) + (meshHeight / 2) - .1,
     local.pos.z
 );
 local.mesh.group.rotation.y = local.yaw;
@@ -381,6 +381,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
