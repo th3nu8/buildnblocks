@@ -265,7 +265,7 @@ function step(dt) {
     // --- Killfloor ---
     const killHeight = -10; // Y position below which the player dies
     if (local.pos.y < killHeight) {
-        local.health = 0; // triggers respawn logic
+        local.health = 50; // triggers respawn logic
     }
   
     if (local.health <= 0) {
@@ -420,6 +420,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
