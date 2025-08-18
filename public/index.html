@@ -262,6 +262,12 @@ function step(dt) {
     local.vel.y += -20 * dt;
     local.pos.y += local.vel.y * dt;
 
+    // --- Killfloor ---
+    const killHeight = -10; // Y position below which the player dies
+    if (local.pos.y < killHeight) {
+        local.health = 0; // triggers respawn logic
+    }
+  
     if (local.health <= 0) {
       // Respawn in the middle of the map
       local.pos.set(0, 2.5, 0);   // 2.5 is player height offset
@@ -414,6 +420,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
