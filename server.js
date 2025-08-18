@@ -3,7 +3,7 @@ const path = require('path');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const server = http.createServer(app);
@@ -98,3 +98,4 @@ io.on('connection', socket => {
 
 // ----------------- START SERVER -----------------
 server.listen(3000, () => console.log('Server running on http://localhost:3000'));
+
