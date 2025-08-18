@@ -1,69 +1,100 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const bcrypt = require('bcrypt');
+
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const server = http.createServer(app);
+const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
+app.use(express.json());
+app.use(express.static('public')); // serve index.html, stud.png, etc.
 
-app.use(express.static('public')); // serve your index.html and assets
+const USERS_FILE = path.join(__dirname, 'users.json');
 
-// ---------- GAME STATE ----------
-const blocks = []; // array of {x,y,z}
-const players = {}; // key: socket.id, value: {x,y,z,yaw,name}
+function loadUsers() {
+    if (!fs.existsSync(USERS_FILE)) return {};
+    return JSON.parse(fs.readFileSync(USERS_FILE));
+}
 
-// ---------- SOCKET.IO ----------
-io.on('connection', (socket) => {
-  console.log(`Player connected: ${socket.id}`);
+function saveUsers(users) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
 
-  // Send initial state
-  socket.emit('init', { blocks, players });
+function generateId() {
+    return 'p_' + Math.random().toString(36).substr(2, 9);
+}
 
-  // When a new player joins, add them and notify everyone else
-  socket.on('join', (data) => {
-    players[socket.id] = data;
-    socket.broadcast.emit('player-join', { id: socket.id, ...data });
-  });
+// ----------------- AUTH ENDPOINTS -----------------
+app.post('/signup', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
 
-  // Movement updates
-  socket.on('move', (data) => {
-    if (!players[socket.id]) return;
-    players[socket.id] = { ...players[socket.id], ...data };
-    socket.broadcast.emit('player-update', { id: socket.id, ...data });
-  });
+    const users = loadUsers();
+    if (users[email]) return res.status(400).json({ error: 'Email already exists' });
 
-  // Build block
-  socket.on('build', (data) => {
-    if (!blocks.find(b => b.x === data.x && b.y === data.y && b.z === data.z)) {
-      blocks.push(data);
-      io.emit('build', data); // broadcast to everyone
-    }
-  });
-
-  // Remove block
-  socket.on('remove', (data) => {
-    const index = blocks.findIndex(b => b.x === data.x && b.y === data.y && b.z === data.z);
-    if (index !== -1) {
-      blocks.splice(index, 1);
-      io.emit('remove', data);
-    }
-  });
-
-  // Name change
-  socket.on('name-change', ({ name }) => {
-    if (players[socket.id]) {
-      players[socket.id].name = name;
-      socket.broadcast.emit('player-update', { id: socket.id, name });
-    }
-  });
-
-  // Disconnect
-  socket.on('disconnect', () => {
-    console.log(`Player disconnected: ${socket.id}`);
-    delete players[socket.id];
-    socket.broadcast.emit('player-leave', { id: socket.id });
-  });
+    const hash = await bcrypt.hash(password, 10);
+    const id = generateId();
+    users[email] = { password: hash, id };
+    saveUsers(users);
+    res.json({ success: true, id });
 });
 
-http.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    const users = loadUsers();
+    if (!users[email]) return res.status(400).json({ error: 'Email not found' });
+
+    const valid = await bcrypt.compare(password, users[email].password);
+    if (!valid) return res.status(400).json({ error: 'Invalid password' });
+
+    res.json({ success: true, id: users[email].id });
 });
+
+// ----------------- SOCKET.IO -----------------
+const players = {}; // playerId -> {x,y,z,yaw,name}
+
+io.on('connection', socket => {
+    let playerId = null;
+
+    socket.on('auth', (data) => {
+        playerId = data.id;
+        players[playerId] = { x:0, y:2.5, z:0, yaw:0, name: data.name || 'Player' };
+        // send initial state
+        socket.emit('init', { blocks: [], players });
+        socket.broadcast.emit('player-join', { id: playerId, x:0, y:2.5, z:0, name: players[playerId].name });
+    });
+
+    socket.on('move', (data) => {
+        if (!playerId) return;
+        players[playerId] = { ...players[playerId], ...data };
+        socket.broadcast.emit('player-update', { id: playerId, ...data });
+    });
+
+    socket.on('build', (data) => {
+        if (!playerId) return;
+        io.emit('build', data);
+    });
+
+    socket.on('remove', (data) => {
+        if (!playerId) return;
+        io.emit('remove', data);
+    });
+
+    socket.on('name-change', (data) => {
+        if (!playerId) return;
+        players[playerId].name = data.name;
+        socket.broadcast.emit('player-update', { id: playerId, name: data.name });
+    });
+
+    socket.on('disconnect', () => {
+        if (!playerId) return;
+        delete players[playerId];
+        socket.broadcast.emit('player-leave', { id: playerId });
+    });
+});
+
+// ----------------- START SERVER -----------------
+server.listen(3000, () => console.log('Server running on http://localhost:3000'));
