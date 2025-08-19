@@ -239,7 +239,7 @@ socket.on('player-update',({id,x,y,z,yaw,name})=>{
 
 /* ---------- BUILD/REMOVE LISTEN ---------- */
 socket.on('build', ({ x, y, z, color }) => {
-    makeBlock(x, y, z, color);
+  makeBlock(x, y, z, color);
 });
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
 
@@ -446,6 +446,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
