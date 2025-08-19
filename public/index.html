@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
+<link rel="icon" href="bnb-favicon.png" type="image/png">
 <meta charset="utf-8" />
 <title>BuildNBlocks</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-<link rel="icon" href="bnb-favicon.png" type="image/png">
 body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
 .tool{padding:6px 12px;border:1px solid #fff;border-radius:4px;cursor:pointer;user-select:none;}
@@ -218,7 +218,7 @@ socket.on('connect', () => {
     // Send initial join info
     socket.emit('join', {
         x: local.pos.x,
-        y: local.pos.y - .1,
+        y: local.pos.y,
         z: local.pos.z,
         yaw: local.yaw,
         name: local.name
@@ -235,7 +235,7 @@ socket.on('init', payload => {
 
 socket.on('player-join',({id,x,y,z,name})=>{ if(id!==local.id) spawnOther(id,{x,y,z,name}); });
 socket.on('player-leave',({id})=>removeOther(id));
-socket.on('player-update',({id,x,y,z,yaw,name})=>{
+socket.on('player-update',({id,x,y - 1,z,yaw,name})=>{
   if(id===local.id){ if(name) local.name=name; return; }
   const p=others.get(id); if(!p) return;
   if(x!==undefined)p.pos.x=x; if(y!==undefined)p.pos.y=y; if(z!==undefined)p.pos.z=z;
@@ -449,6 +449,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
