@@ -217,7 +217,7 @@ socket.on('connect', () => {
     // Send initial join info
     socket.emit('join', {
         x: local.pos.x,
-        y: local.pos.y,
+        y: local.pos.y - .1,
         z: local.pos.z,
         yaw: local.yaw,
         name: local.name
@@ -315,12 +315,12 @@ function step(dt) {
 
             if (minOverlap === overlapY) {
                 // Vertical
-                if (local.vel.y <= 0 {
-                    local.pos.y = max.y + halfHeight;
+                if (local.vel.y <= 0 && (playerMin.y < max.y)) {
+                    local.pos.y += overlapY - .1;
                     local.vel.y = 0;
                     local.onGround = true;
                 } else if (local.vel.y > 0) {
-                    local.pos.y = min.y - halfHeight;
+                    local.pos.y -= overlapY;
                     local.vel.y = 0;
                 }
             } else if (minOverlap === overlapX) {
@@ -448,8 +448,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
 
 
 
