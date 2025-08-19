@@ -326,8 +326,8 @@ function step(dt) {
                 }
             } else if (minOverlap === overlapX) {
                 // X axis
-                if (local.pos.x < b.position.x) local.pos.x -= overlapX - .1;
-                else local.pos.x += overlapX + .1;
+                if (local.pos.x < b.position.x) local.pos.x -= overlapX + .1;
+                else local.pos.x += overlapX - .1;
             } else {
                 // Z axis
                 if (local.pos.z < b.position.z) local.pos.z -= overlapZ;
@@ -449,6 +449,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
