@@ -42,7 +42,7 @@ io.on('connection', (socket) => {
 
   // Remove
   socket.on('remove', (data) => {
-    const index = blocks.findIndex(b => b.x === data.x && b.y === data.y && b.z === data.z)
+    const index = blocks.findIndex(b => b.x === data.x && b.y === (data.y - .25) && b.z === data.z)
     if(index !== -1) blocks.splice(index, 1)
     io.emit('remove', data)
   })
@@ -63,3 +63,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000
 server.listen(PORT, () => console.log('Server running on port', PORT))
+
