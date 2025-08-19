@@ -45,7 +45,7 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 <div id="healthContainer">
   <div id="healthBar"></div>
 </div>
-<input type="color" id="blockColor" value="007700" placeholder="#hex" 
+<input type="color" id="blockColor" value="ffffff" placeholder="#hex" 
   style="position:fixed;bottom:8px;right:8px;width:70px;padding:4px;border-radius:4px;border:none;font-family:sans-serif;z-index:5;">
 
 
@@ -83,9 +83,9 @@ const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.Repeat
 
 function getBlockColor() {
   const hexInput = document.getElementById('blockColor')
-  if(!hexInput) return 0x007700
-  const hex = hexInput.value || '#007700'
-  return parseInt(hex.replace('#',''), 16) || 0x007700
+  if(!hexInput) return 0xffffff
+  const hex = hexInput.value || '#ffffff'
+  return parseInt(hex.replace('#',''), 16) || 0xffffff
 }
 
 /* ---------- BLOCKS ---------- */
@@ -480,3 +480,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
