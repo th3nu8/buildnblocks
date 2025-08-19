@@ -69,28 +69,24 @@ const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.Repeat
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
-if (activeTool === 'build') {
-  let targetPos;
-  if (hits.length > 0) {
-      const hit = hits[0];
-      targetPos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
-  } else {
-      // place in front of camera if nothing hit
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      targetPos = camera.position.clone().add(dir.multiplyScalar(5));
-  }
+function makeBlock(x, y, z, color=0xffffff, indestructible=false){
+	const k = keyOf(x, y, z);
+	if(blockIndex.has(k)) return;
 
-  const x = Math.floor(targetPos.x);
-  const y = Math.floor(targetPos.y);
-  const z = Math.floor(targetPos.z);
+	const material = new THREE.MeshStandardMaterial({
+		color: color,            // block color
+		map: studTexture          // overlay stud texture
+	});
 
-  if (!blockIndex.has(keyOf(x, y, z))) {
-      const hexInput = document.getElementById('hexInput').value;
-      const hexColor = parseInt(hexInput.replace("#", "0x"));
-      makeBlock(x, y, z, hexColor);
-      socket.emit('build', { x, y, z, color: hexColor });
-  }
+	const b = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
+	b.position.set(x + 0.5, y + 0.5, z + 0.5);
+
+	scene.add(b);
+	blocks.push(b);
+	blockIndex.set(k, b);
+
+	if(indestructible) indestructibleBlocks.add(b);
+	return b;
 }
 function removeBlockAt(x,y,z){
   const k=keyOf(x,y,z), m=blockIndex.get(k); if(!m||indestructibleBlocks.has(m)) return false;
@@ -471,6 +467,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
