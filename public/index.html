@@ -297,28 +297,28 @@ function step(dt) {
     }
   });
 
-  // --- HORIZONTAL COLLISIONS ---
+  // --- HORIZONTAL COLLISIONS (smooth) ---
   blocks.forEach(b => {
     const min = b.position.clone().subScalar(0.5);
     const max = b.position.clone().addScalar(0.5);
 
-    // X axis
-    if (local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y &&
-        local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
-      if (local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
-        const overlap = (local.pos.x + radius) - min.x < max.x - (local.pos.x - radius) ?
-                        (local.pos.x + radius) - min.x : (local.pos.x - radius) - max.x;
-        local.pos.x -= overlap;
-      }
-    }
+    // Only check blocks that are overlapping in Y
+    if (local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y) {
 
-    // Z axis
-    if (local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y &&
-        local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
+      // X axis
       if (local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
-        const overlap = (local.pos.z + radius) - min.z < max.z - (local.pos.z - radius) ?
-                        (local.pos.z + radius) - min.z : (local.pos.z - radius) - max.z;
-        local.pos.z -= overlap;
+        if (local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
+          if (move.x > 0) local.pos.x = min.x - radius;   // moving right
+          else if (move.x < 0) local.pos.x = max.x + radius; // moving left
+        }
+      }
+
+      // Z axis
+      if (local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
+        if (local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+          if (move.z > 0) local.pos.z = min.z - radius;   // moving forward
+          else if (move.z < 0) local.pos.z = max.z + radius; // moving backward
+        }
       }
     }
   });
@@ -445,6 +445,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
