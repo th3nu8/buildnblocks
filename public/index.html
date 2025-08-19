@@ -262,37 +262,30 @@ function step(dt) {
   if (keys['KeyD']) move.add(right)
   if (move.length() > 0) move.normalize().multiplyScalar(5 * dt)
 
+  // Apply horizontal movement
+  local.pos.add(new THREE.Vector3(move.x, 0, move.z))
+
   const radius = 0.4
   const playerHeight = 2.5
   const halfHeight = playerHeight / 2
 
-  // ---- Horizontal movement X ----
-  local.pos.x += move.x
+  // Horizontal collisions
   blocks.forEach(b => {
     const min = b.position.clone().subScalar(0.5)
     const max = b.position.clone().addScalar(0.5)
 
-    const overlapY = local.pos.y + halfHeight > min.y && local.pos.y - halfHeight < max.y
-    const overlapZ = local.pos.z + radius > min.z && local.pos.z - radius < max.z
-
-    if (overlapY && overlapZ) {
+    // X axis
+    if (local.pos.z + radius > min.z && local.pos.z - radius < max.z &&
+        local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y) {
       if (local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
         if (local.pos.x < b.position.x) local.pos.x = min.x - radius
         else local.pos.x = max.x + radius
       }
     }
-  })
 
-  // ---- Horizontal movement Z ----
-  local.pos.z += move.z
-  blocks.forEach(b => {
-    const min = b.position.clone().subScalar(0.5)
-    const max = b.position.clone().addScalar(0.5)
-
-    const overlapY = local.pos.y + halfHeight > min.y && local.pos.y - halfHeight < max.y
-    const overlapX = local.pos.x + radius > min.x && local.pos.x - radius < max.x
-
-    if (overlapY && overlapX) {
+    // Z axis
+    if (local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+        local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y) {
       if (local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
         if (local.pos.z < b.position.z) local.pos.z = min.z - radius
         else local.pos.z = max.z + radius
@@ -300,72 +293,57 @@ function step(dt) {
     }
   })
 
-  // ---- Vertical movement Y ----
+  // Gravity
   local.vel.y += -20 * dt
   local.pos.y += local.vel.y * dt
-  local.onGround = false
 
+  // Vertical collisions
+  local.onGround = false
   blocks.forEach(b => {
     const min = b.position.clone().subScalar(0.5)
     const max = b.position.clone().addScalar(0.5)
 
-    const overlapX = local.pos.x + radius > min.x && local.pos.x - radius < max.x
-    const overlapZ = local.pos.z + radius > min.z && local.pos.z - radius < max.z
-
-    if (overlapX && overlapZ) {
+    if (local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+        local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
       const bottom = local.pos.y - halfHeight
       const top = local.pos.y + halfHeight
 
-      // Falling down
       if (local.vel.y <= 0 && bottom < max.y && bottom > min.y) {
         local.pos.y = max.y + halfHeight
         local.vel.y = 0
         local.onGround = true
-      }
-      // Moving up
-      else if (local.vel.y > 0 && top > min.y && top < max.y) {
+      } else if (local.vel.y > 0 && top > min.y && top < max.y) {
         local.pos.y = min.y - halfHeight
         local.vel.y = 0
       }
     }
   })
 
-  const moveLen = move.length()
-if (moveLen > 0) {
-  const targetYaw = Math.atan2(move.x, move.z)
-  local.yaw += (targetYaw - local.yaw) * 0.2
-  local.walkTime += dt * 6
-  const swing = Math.sin(local.walkTime) * 0.5
-  local.mesh.shoulderL.rotation.x = swing
-  local.mesh.shoulderR.rotation.x = -swing
-  local.mesh.hipL.rotation.x = -swing
-  local.mesh.hipR.rotation.x = swing
-} else {
-  local.walkTime = 0
-}
-
-// Update mesh position to align with hitbox
-const meshHeight = 2.2
-local.mesh.group.position.set(
-  local.pos.x,
-  local.pos.y - halfHeight + meshHeight / 2 - 0.1,
-  local.pos.z
-)
-local.mesh.group.rotation.y = local.yaw
-  
   // Jump
   if (local.onGround && keys['Space']) local.vel.y = 12
 
-  // Killfloor / respawn
-  const killHeight = -10
-  if (local.pos.y < killHeight) local.health = 0
-  if (local.health <= 0) {
+  // Killfloor
+  if (local.pos.y < -10) {
     local.pos.set(0, 2.5, 0)
     local.vel.set(0, 0, 0)
-    local.health = 100
   }
 
-  // Update player mesh
+  // Walking animation
+  const moveLen = move.length()
+  if (moveLen > 0) {
+    const targetYaw = Math.atan2(move.x, move.z)
+    local.yaw += (targetYaw - local.yaw) * 0.2
+    local.walkTime += dt * 6
+    const swing = Math.sin(local.walkTime) * 0.5
+    local.mesh.shoulderL.rotation.x = swing
+    local.mesh.shoulderR.rotation.x = -swing
+    local.mesh.hipL.rotation.x = -swing
+    local.mesh.hipR.rotation.x = swing
+  } else {
+    local.walkTime = 0
+  }
+
+  // Update mesh position
   const meshHeight = 2.2
   local.mesh.group.position.set(
     local.pos.x,
@@ -463,6 +441,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
