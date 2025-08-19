@@ -164,11 +164,11 @@ window.addEventListener('pointerdown',e=>{
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
   if (activeTool === 'build') {
     if (!blockIndex.has(keyOf(x, y, z))) {
-        // Get hex value from input and convert to number
-        const hexInput = document.getElementById('hexInput').value;
-        const hexColor = parseInt(hexInput.replace("#", "0x"));
-        makeBlock(x, y, z, hexColor);
-        socket.emit('build', { x, y, z, color: hexColor });
+      // Get hex value from input and convert to number
+      const hexInput = document.getElementById('hexInput').value;
+      const hexColor = parseInt(hexInput.replace("#", "0x"));
+      makeBlock(x, y, z, hexColor);
+      socket.emit('build', { x, y, z, color: hexColor });
     }
   }
 
@@ -447,6 +447,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
