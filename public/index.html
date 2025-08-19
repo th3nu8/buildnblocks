@@ -8,7 +8,7 @@
 body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
 .tool{padding:6px 12px;border:1px solid #fff;border-radius:4px;cursor:pointer;user-select:none;}
-.tool.active{background:#4cc3ff;color:#000;}
+.tool.active{background:#4cc3ff;color:#777;}
 #status{position:fixed;top:8px;left:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
 #nameInput{position:fixed;top:8px;right:8px;z-index:5;padding:4px;}
 #playerList{position:fixed;top:50px;right:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
@@ -44,6 +44,9 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 <div id="healthContainer">
   <div id="healthBar"></div>
 </div>
+<input type="text" id="blockColor" value="#ffffff" placeholder="#hex" 
+  style="position:fixed;bottom:8px;right:8px;width:70px;padding:4px;border-radius:4px;border:none;font-family:sans-serif;z-index:5;">
+
 
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
@@ -67,11 +70,27 @@ const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.Repeat
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
-function makeBlock(x,y,z,indestructible=false){
-  const k=keyOf(x,y,z); if(blockIndex.has(k)) return;
-  const b=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({map:studTexture}));
-  b.position.set(x+0.5,y+0.5,z+0.5); scene.add(b); blocks.push(b); blockIndex.set(k,b);
-  if(indestructible) indestructibleBlocks.add(b); return b;
+function makeBlock(x, y, z, indestructible=false){
+  const k = keyOf(x, y, z)
+  if(blockIndex.has(k)) return
+
+  // Get color from bottom-right input
+  const hex = document.getElementById('blockColor').value
+  const colorValue = parseInt(hex.replace('#',''), 16) || 0xffffff
+
+  const material = new THREE.MeshStandardMaterial({
+    map: studTexture,  // stud remains
+    color: colorValue  // block color changes
+  })
+
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material)
+  b.position.set(x+0.5, y+0.5, z+0.5)
+  scene.add(b)
+  blocks.push(b)
+  blockIndex.set(k, b)
+
+  if(indestructible) indestructibleBlocks.add(b)
+  return b
 }
 function removeBlockAt(x,y,z){
   const k=keyOf(x,y,z), m=blockIndex.get(k); if(!m||indestructibleBlocks.has(m)) return false;
@@ -146,7 +165,14 @@ window.addEventListener('pointerdown',e=>{
   raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(blocks);
   if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
-  if(activeTool==='build'){ if(!blockIndex.has(keyOf(x,y,z))){ makeBlock(x,y,z); socket.emit('build',{x,y,z}); } }
+  if(activeTool === 'build'){
+    if(!blockIndex.has(keyOf(x,y,z))){
+      const hex = document.getElementById('blockColor').value
+      const colorValue = parseInt(hex.replace('#',''), 16) || 0xffffff
+      makeBlock(x,y,z)
+      socket.emit('build', {x, y, z, color: colorValue})
+    }
+  }
   else if(activeTool==='remove'){ const bx=Math.floor(hit.object.position.x-0.5),by=Math.floor(hit.object.position.y-0.5),bz=Math.floor(hit.object.position.z-0.5); if(removeBlockAt(bx,by,bz)) socket.emit('remove',{x:bx,y:by,z:bz}); }
 }});
 
@@ -214,7 +240,12 @@ socket.on('player-update',({id,x,y,z,yaw,name})=>{
 });
 
 /* ---------- BUILD/REMOVE LISTEN ---------- */
-socket.on('build',({x,y,z})=>{ makeBlock(x,y,z); });
+socket.on('build', ({x,y,z,color}) => {
+  makeBlock(x, y, z)
+  // override color if sent
+  const b = blockIndex.get(keyOf(x,y,z))
+  if(b && color !== undefined) b.material.color.setHex(color)
+}
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
 
 /* ---------- PHYSICS & ANIMATION ---------- */
@@ -420,6 +451,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
