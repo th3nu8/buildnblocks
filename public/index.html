@@ -70,9 +70,9 @@ const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.Repeat
 
 function getBlockColor() {
   const hexInput = document.getElementById('blockColor')
-  if(!hexInput) return 0xffffff
-  const hex = hexInput.value || '#ffffff'
-  return parseInt(hex.replace('#',''), 16) || 0xffffff
+  if(!hexInput) return 0x007700
+  const hex = hexInput.value || '#007700'
+  return parseInt(hex.replace('#',''), 16) || 0x007700
 }
 
 /* ---------- BLOCKS ---------- */
@@ -455,6 +455,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
