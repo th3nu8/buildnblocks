@@ -323,23 +323,17 @@ function step(dt) {
                 } else if (local.vel.y > 0) {
                     local.pos.y -= overlapY;
                     local.vel.y = 0;
-                  }
+                }
             } else if (minOverlap === overlapX) {
                 // X axis
-                const dx = (local.pos.x - b.position.x);
-                if (dx < 0) {
-                    local.pos.x -=overlapX;
-                } else {
-                    local.pos.x +=overlapX;
+                if (local.pos.x < b.position.x) local.pos.x -= overlapX - .1;
+                else local.pos.x += overlapX + .1;
             } else {
                 // Z axis
-                const dz = (local.pos.z - b.position.z);
-                if (dz < 0) {
-                    local.pos.z -=overlapZ;
-                } else {
-                    local.pos.z +=overlapZ;
-                }
-          }
+                if (local.pos.z < b.position.z) local.pos.z -= overlapZ - .1;
+                else local.pos.z += overlapZ + .1;
+            }
+        }
     });
 
     // Jump
