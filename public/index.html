@@ -320,7 +320,7 @@ function step(dt) {
                     local.vel.y = 0;
                     local.onGround = true;
                 } else if (local.vel.y > 0) {
-                    local.pos.y -= overlapY;
+                    local.pos.y -= overlapY + .1;
                     local.vel.y = 0;
                 }
             } else if (minOverlap === overlapX) {
@@ -448,6 +448,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
