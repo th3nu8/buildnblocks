@@ -198,11 +198,11 @@ function makeNametagSprite(text){
 function spawnOther(id,p){
   if(others.has(id))return;
   const {group,parts}=makeAvatar(0xff4444,0x3333ff);
-  group.position.set(p.x,p.y,p.z);
+  group.position.set(p.x,p.y - 0.25,p.z);
   const nametagObj=makeNametagSprite(p.name||"Player");
-  nametagObj.sprite.position.set(0,2,0); group.add(nametagObj.sprite);
+  nametagObj.sprite.position.set(0,2.1,0); group.add(nametagObj.sprite);
   scene.add(group);
-  others.set(id,{group,...parts,nametag:nametagObj,pos:new THREE.Vector3(p.x,p.y - 0.1,p.z),walkTime:0,name:p.name||"Player"});
+  others.set(id,{group,...parts,nametag:nametagObj,pos:new THREE.Vector3(p.x,p.y - 0.25,p.z),walkTime:0,name:p.name||"Player"});
   updatePlayerList();
 }
 function removeOther(id){ const p=others.get(id); if(!p)return; scene.remove(p.group); others.delete(id); updatePlayerList();}
@@ -449,6 +449,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
