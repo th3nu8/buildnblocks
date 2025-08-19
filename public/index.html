@@ -78,7 +78,7 @@ function makeBlock(x, y, z, colorHex = 0xffffff, indestructible = false) {
     new THREE.MeshStandardMaterial({
       map: studTexture,
       color: colorHex
-      })
+    })
   );
   b.position.set(x + 0.5, y + 0.5, z + 0.5);
   scene.add(b);
@@ -446,6 +446,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
