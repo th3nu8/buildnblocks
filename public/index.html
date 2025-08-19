@@ -238,7 +238,7 @@ socket.on('player-leave',({id})=>removeOther(id));
 socket.on('player-update',({id,x,y,z,yaw,name})=>{
   if(id===local.id){ if(name) local.name=name; return; }
   const p=others.get(id); if(!p) return;
-  if(x!==undefined)p.pos.x=x; if(y!==undefined)p.pos.y=y; if(z!==undefined)p.pos.z=z;
+  if(x!==undefined)p.pos.x=x; if(y!==undefined)p.pos.y=y - 0.25; if(z!==undefined)p.pos.z=z;
   if(yaw!==undefined)p.group.rotation.y=yaw;
   if(name!==undefined){ p.name=name; const ctx=p.nametag.ctx; ctx.clearRect(0,0,256,64); ctx.fillText(name,128,48); p.nametag.texture.needsUpdate=true; }
   updatePlayerList();
@@ -449,6 +449,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
