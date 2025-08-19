@@ -197,7 +197,7 @@ function makeNametagSprite(text){
 function spawnOther(id,p){
   if(others.has(id))return;
   const {group,parts}=makeAvatar(0xff4444,0x3333ff);
-  group.position.set(p.x,p.y,p.z);
+  group.position.set(p.x,p.y - 0.1,p.z);
   const nametagObj=makeNametagSprite(p.name||"Player");
   nametagObj.sprite.position.set(0,2.1,0); group.add(nametagObj.sprite);
   scene.add(group);
@@ -330,6 +330,29 @@ function step(dt) {
     }
   })
 
+  const moveLen = move.length()
+if (moveLen > 0) {
+  const targetYaw = Math.atan2(move.x, move.z)
+  local.yaw += (targetYaw - local.yaw) * 0.2
+  local.walkTime += dt * 6
+  const swing = Math.sin(local.walkTime) * 0.5
+  local.mesh.shoulderL.rotation.x = swing
+  local.mesh.shoulderR.rotation.x = -swing
+  local.mesh.hipL.rotation.x = -swing
+  local.mesh.hipR.rotation.x = swing
+} else {
+  local.walkTime = 0
+}
+
+// Update mesh position to align with hitbox
+const meshHeight = 2.2
+local.mesh.group.position.set(
+  local.pos.x,
+  local.pos.y - halfHeight + meshHeight / 2 - 0.1,
+  local.pos.z
+)
+local.mesh.group.rotation.y = local.yaw
+  
   // Jump
   if (local.onGround && keys['Space']) local.vel.y = 12
 
@@ -440,6 +463,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
