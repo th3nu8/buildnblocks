@@ -70,17 +70,16 @@ const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.Repeat
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
 function makeBlock(x, y, z, colorHex = 0xffffff, indestructible = false) {
-    const k = keyOf(x, y, z);
-    if (blockIndex.has(k)) return;
-
-    // The block material uses the color, but the stud texture stays
-    const b = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshStandardMaterial({
-            map: studTexture,
-            color: colorHex
-        })
-    );
+  const k = keyOf(x, y, z);
+  if (blockIndex.has(k)) return;
+  // The block material uses the color, but the stud texture stays
+  const b = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({
+      map: studTexture,
+      color: colorHex
+      })
+  );
     b.position.set(x + 0.5, y + 0.5, z + 0.5);
     scene.add(b);
     blocks.push(b);
@@ -447,6 +446,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
