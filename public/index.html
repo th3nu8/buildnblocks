@@ -273,12 +273,36 @@ function step(dt) {
   const halfHeight = 2.5 / 2;
   local.onGround = false;
 
-  // Collision resolution
+  // --- VERTICAL COLLISIONS FIRST ---
   blocks.forEach(b => {
     const min = b.position.clone().subScalar(0.5);
     const max = b.position.clone().addScalar(0.5);
 
-    // --- HORIZONTAL COLLISIONS (X) ---
+    const bottom = local.pos.y - halfHeight;
+    const top = local.pos.y + halfHeight;
+
+    if (local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+        local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+
+      if (local.vel.y <= 0 && bottom < max.y && bottom > min.y) {
+        // Landing on block
+        local.pos.y = max.y + halfHeight;
+        local.vel.y = 0;
+        local.onGround = true;
+      } else if (local.vel.y > 0 && top > min.y && top < max.y) {
+        // Hitting ceiling
+        local.pos.y = min.y - halfHeight;
+        local.vel.y = 0;
+      }
+    }
+  });
+
+  // --- HORIZONTAL COLLISIONS ---
+  blocks.forEach(b => {
+    const min = b.position.clone().subScalar(0.5);
+    const max = b.position.clone().addScalar(0.5);
+
+    // X axis
     if (local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y &&
         local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
       if (local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
@@ -288,28 +312,13 @@ function step(dt) {
       }
     }
 
-    // --- HORIZONTAL COLLISIONS (Z) ---
+    // Z axis
     if (local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y &&
         local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
       if (local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
         const overlap = (local.pos.z + radius) - min.z < max.z - (local.pos.z - radius) ?
                         (local.pos.z + radius) - min.z : (local.pos.z - radius) - max.z;
         local.pos.z -= overlap;
-      }
-    }
-
-    // --- VERTICAL COLLISIONS (Y) ---
-    const bottom = local.pos.y - halfHeight;
-    const top = local.pos.y + halfHeight;
-    if (local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
-        local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
-      if (local.vel.y <= 0 && bottom < max.y && bottom > min.y) {
-        local.pos.y = max.y + halfHeight;
-        local.vel.y = 0;
-        local.onGround = true;
-      } else if (local.vel.y > 0 && top > min.y && top < max.y) {
-        local.pos.y = min.y - halfHeight;
-        local.vel.y = 0;
       }
     }
   });
@@ -436,6 +445,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
