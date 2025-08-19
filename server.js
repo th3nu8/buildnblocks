@@ -9,11 +9,11 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // Serve static files from Public
-app.use(express.static(path.join(__dirname, 'Public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Ensure / sends index.html
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'Public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Block storage: key = "x|y|z", value = {x, y, z, color}
@@ -50,3 +50,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
