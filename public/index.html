@@ -69,24 +69,23 @@ const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.Repeat
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
-function makeBlock(x, y, z, colorHex = 0xffffff, indestructible = false) {
-  const k = keyOf(x, y, z);
+function makeBlock(x, y, z, indestructible=false, colorHex="#00ff00") {
+  const k = keyOf(x, y, z); 
   if (blockIndex.has(k)) return;
-  // The block material uses the color, but the stud texture stays
+
+  const color = new THREE.Color(colorHex); // convert hex to Three.js color
   const b = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshStandardMaterial({
-      map: studTexture,
-      color: colorHex
-      })
+    new THREE.MeshStandardMaterial({ color: color, map: studTexture })
   );
-    b.position.set(x + 0.5, y + 0.5, z + 0.5);
-    scene.add(b);
-    blocks.push(b);
-    blockIndex.set(k, b);
 
-    if (indestructible) indestructibleBlocks.add(b);
-    return b;
+  b.position.set(x + 0.5, y + 0.5, z + 0.5); 
+  scene.add(b); 
+  blocks.push(b); 
+  blockIndex.set(k, b);
+
+  if (indestructible) indestructibleBlocks.add(b); 
+  return b;
 }
 function removeBlockAt(x,y,z){
   const k=keyOf(x,y,z), m=blockIndex.get(k); if(!m||indestructibleBlocks.has(m)) return false;
@@ -163,14 +162,11 @@ window.addEventListener('pointerdown',e=>{
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
   if (activeTool === 'build') {
     if (!blockIndex.has(keyOf(x, y, z))) {
-      // Get hex value from input and convert to number
-      const hexInput = document.getElementById('hexInput').value;
-      const hexColor = parseInt(hexInput.replace("#", "0x"));
-      makeBlock(x, y, z, hexColor);
-      socket.emit('build', { x, y, z, color: hexColor });
+      const hex = document.getElementById('colorHex').value || "#00ff00";
+      makeBlock(x, y, z, false, hex);
+      socket.emit('build', { x, y, z, color: hex });
     }
   }
-
   else if(activeTool==='remove'){ const bx=Math.floor(hit.object.position.x-0.5),by=Math.floor(hit.object.position.y-0.5),bz=Math.floor(hit.object.position.z-0.5); if(removeBlockAt(bx,by,bz)) socket.emit('remove',{x:bx,y:by,z:bz}); }
 }});
 
@@ -239,7 +235,7 @@ socket.on('player-update',({id,x,y,z,yaw,name})=>{
 
 /* ---------- BUILD/REMOVE LISTEN ---------- */
 socket.on('build', ({ x, y, z, color }) => {
-    makeBlock(x, y, z, color);
+  makeBlock(x, y, z, false, color || "#00ff00");
 });
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
 
@@ -446,23 +442,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
