@@ -4,8 +4,8 @@
 <meta charset="utf-8" />
 <title>BuildNBlocks</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="icon" href="bnb-favicon.png" type="image/png">
 <style>
+<link rel="icon" href="bnb-favicon.png" type="image/png">
 body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
 .tool{padding:6px 12px;border:1px solid #fff;border-radius:4px;cursor:pointer;user-select:none;}
@@ -198,11 +198,11 @@ function makeNametagSprite(text){
 function spawnOther(id,p){
   if(others.has(id))return;
   const {group,parts}=makeAvatar(0xff4444,0x3333ff);
-  group.position.set(p.x,p.y - .1,p.z);
+  group.position.set(p.x,p.y,p.z);
   const nametagObj=makeNametagSprite(p.name||"Player");
   nametagObj.sprite.position.set(0,2.1,0); group.add(nametagObj.sprite);
   scene.add(group);
-  others.set(id,{group,...parts,nametag:nametagObj,pos:new THREE.Vector3(p.x,p.y,p.z),walkTime:0,name:p.name||"Player"});
+  others.set(id,{group,...parts,nametag:nametagObj,pos:new THREE.Vector3(p.x,p.y - 0.1,p.z),walkTime:0,name:p.name||"Player"});
   updatePlayerList();
 }
 function removeOther(id){ const p=others.get(id); if(!p)return; scene.remove(p.group); others.delete(id); updatePlayerList();}
@@ -449,6 +449,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
