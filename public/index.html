@@ -308,9 +308,9 @@ function step(dt) {
             playerMax.y > min.y && playerMin.y < max.y &&
             playerMax.z > min.z && playerMin.z < max.z) {
 
-            const overlapX = Math.min(playerMax.x - min.x, max.x - playerMin.x);
+            const overlapX = Math.min(playerMax.x - min.x, max.x - playerMin.x - 1);
             const overlapY = Math.min(playerMax.y - min.y, max.y - playerMin.y);
-            const overlapZ = Math.min(playerMax.z - min.z, max.z - playerMin.z);
+            const overlapZ = Math.min(playerMax.z - min.z, max.z - playerMin.z - 1);
 
             const minOverlap = Math.min(overlapX, overlapY, overlapZ);
 
@@ -449,6 +449,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
