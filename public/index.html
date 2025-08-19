@@ -323,7 +323,7 @@ function step(dt) {
                 } else if (local.vel.y > 0) {
                     local.pos.y -= overlapY;
                     local.vel.y = 0;
-                }
+                  }
             } else if (minOverlap === overlapX) {
                 // X axis
                 const dx = (local.pos.x - b.position.x);
@@ -338,8 +338,8 @@ function step(dt) {
                     local.pos.z -=overlapZ;
                 } else {
                     local.pos.z +=overlapZ;
-            }
-        }
+                }
+          }
     });
 
     // Jump
@@ -455,6 +455,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
