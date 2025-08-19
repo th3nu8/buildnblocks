@@ -67,20 +67,25 @@ scene.add(sun);
 const textureLoader=new THREE.TextureLoader();
 const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);});
 
+function getBlockColor() {
+  const hexInput = document.getElementById('blockColor')
+  if(!hexInput) return 0xffffff
+  const hex = hexInput.value || '#ffffff'
+  return parseInt(hex.replace('#',''), 16) || 0xffffff
+}
+
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
-function makeBlock(x, y, z, indestructible=false){
+function makeBlock(x, y, z, indestructible=false, color) {
   const k = keyOf(x, y, z)
   if(blockIndex.has(k)) return
 
-  // Get color from bottom-right input
-  const hex = document.getElementById('blockColor').value
-  const colorValue = parseInt(hex.replace('#',''), 16) || 0xffffff
+  if(color === undefined) color = getBlockColor()
 
   const material = new THREE.MeshStandardMaterial({
-    map: studTexture,  // stud remains
-    color: colorValue  // block color changes
+    map: studTexture,
+    color: color
   })
 
   const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material)
@@ -165,12 +170,11 @@ window.addEventListener('pointerdown',e=>{
   raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(blocks);
   if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
-  if(activeTool === 'build'){
+  if(activeTool==='build') {
     if(!blockIndex.has(keyOf(x,y,z))){
-      const hex = document.getElementById('blockColor').value
-      const colorValue = parseInt(hex.replace('#',''), 16) || 0xffffff
-      makeBlock(x,y,z)
-      socket.emit('build', {x, y, z, color: colorValue})
+      const color = getBlockColor()
+      makeBlock(x, y, z, false, color)
+      socket.emit('build', {x, y, z, color})
     }
   }
   else if(activeTool==='remove'){ const bx=Math.floor(hit.object.position.x-0.5),by=Math.floor(hit.object.position.y-0.5),bz=Math.floor(hit.object.position.z-0.5); if(removeBlockAt(bx,by,bz)) socket.emit('remove',{x:bx,y:by,z:bz}); }
@@ -241,11 +245,8 @@ socket.on('player-update',({id,x,y,z,yaw,name})=>{
 
 /* ---------- BUILD/REMOVE LISTEN ---------- */
 socket.on('build', ({x,y,z,color}) => {
-  makeBlock(x, y, z)
-  // override color if sent
-  const b = blockIndex.get(keyOf(x,y,z))
-  if(b && color !== undefined) b.material.color.setHex(color)
-}
+  makeBlock(x,y,z,false,color)
+})
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
 
 /* ---------- PHYSICS & ANIMATION ---------- */
@@ -451,6 +452,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
