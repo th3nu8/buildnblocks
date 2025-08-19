@@ -251,117 +251,113 @@ socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
 
 /* ---------- PHYSICS & ANIMATION ---------- */
 function step(dt) {
-  const forward = new THREE.Vector3(-Math.sin(local.cam.yaw), 0, -Math.cos(local.cam.yaw))
-  const right = new THREE.Vector3(Math.cos(local.cam.yaw), 0, -Math.sin(local.cam.yaw))
+  const forward = new THREE.Vector3(-Math.sin(local.cam.yaw), 0, -Math.cos(local.cam.yaw));
+  const right = new THREE.Vector3(Math.cos(local.cam.yaw), 0, -Math.sin(local.cam.yaw));
 
   // Movement input
-  let move = new THREE.Vector3()
-  if (keys['KeyW']) move.add(forward)
-  if (keys['KeyS']) move.sub(forward)
-  if (keys['KeyA']) move.sub(right)
-  if (keys['KeyD']) move.add(right)
-  if (move.length() > 0) move.normalize().multiplyScalar(5 * dt)
+  let move = new THREE.Vector3();
+  if (keys['KeyW']) move.add(forward);
+  if (keys['KeyS']) move.sub(forward);
+  if (keys['KeyA']) move.sub(right);
+  if (keys['KeyD']) move.add(right);
+  if (move.length() > 0) move.normalize().multiplyScalar(5 * dt);
 
-  // Apply horizontal movement first
-  local.pos.add(new THREE.Vector3(move.x, 0, move.z))
+  // Apply horizontal movement
+  local.pos.add(new THREE.Vector3(move.x, 0, move.z));
 
-  // Apply gravity
-  local.vel.y += -20 * dt
-  local.pos.y += local.vel.y * dt
+  // Gravity
+  local.vel.y += -20 * dt;
+  local.pos.y += local.vel.y * dt;
 
-  // --- Smooth collision resolution ---
-  const radius = 0.4
-  const halfHeight = 1.25
-  const pos = local.pos
-  const vel = local.vel
+  // Collision parameters
+  const radius = 0.4;
+  const playerHeight = 2.5;
+  const halfHeight = playerHeight / 2;
+  local.onGround = false;
 
-  local.onGround = false
+  // --- MULTI-PASS COLLISION RESOLUTION ---
+  const maxIterations = 3; // number of collision passes per frame
+  for (let iter = 0; iter < maxIterations; iter++) {
+    blocks.forEach(b => {
+      const min = b.position.clone().subScalar(0.5);
+      const max = b.position.clone().addScalar(0.5);
 
-  blocks.forEach(b => {
-    const min = b.position.clone().subScalar(0.5)
-    const max = b.position.clone().addScalar(0.5)
+      // --- HORIZONTAL COLLISIONS (X/Z) ---
+      const dx = Math.max(min.x - (local.pos.x + radius), 0, local.pos.x - radius - max.x);
+      const dz = Math.max(min.z - (local.pos.z + radius), 0, local.pos.z - radius - max.z);
+      if (dx !== 0) local.pos.x += dx;
+      if (dz !== 0) local.pos.z += dz;
 
-    // VERTICAL
-    const bottom = pos.y - halfHeight
-    const top = pos.y + halfHeight
+      // --- VERTICAL COLLISIONS (Y) ---
+      const bottom = local.pos.y - halfHeight;
+      const top = local.pos.y + halfHeight;
 
-    if (pos.x + radius > min.x && pos.x - radius < max.x &&
-        pos.z + radius > min.z && pos.z - radius < max.z) {
-      if (vel.y <= 0 && bottom < max.y && bottom > min.y) {
-        pos.y = max.y + halfHeight
-        vel.y = 0
-        local.onGround = true
-      } else if (vel.y > 0 && top > min.y && top < max.y) {
-        pos.y = min.y - halfHeight
-        vel.y = 0
+      // Landing on top of a block
+      if (local.vel.y <= 0 && bottom < max.y && bottom > min.y &&
+          local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+          local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+        local.pos.y = max.y + halfHeight;
+        local.vel.y = 0;
+        local.onGround = true;
       }
-    }
-
-    // HORIZONTAL X
-    if (pos.y - halfHeight < max.y && pos.y + halfHeight > min.y &&
-        pos.z + radius > min.z && pos.z - radius < max.z) {
-      if (pos.x + radius > min.x && pos.x - radius < max.x) {
-        if (pos.x < b.position.x) pos.x = min.x - radius
-        else pos.x = max.x + radius
+      // Hitting the bottom of a block
+      else if (local.vel.y > 0 && top > min.y && top < max.y &&
+          local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+          local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+        local.pos.y = min.y - halfHeight;
+        local.vel.y = 0;
       }
-    }
-
-    // HORIZONTAL Z
-    if (pos.y - halfHeight < max.y && pos.y + halfHeight > min.y &&
-        pos.x + radius > min.x && pos.x - radius < max.x) {
-      if (pos.z + radius > min.z && pos.z - radius < max.z) {
-        if (pos.z < b.position.z) pos.z = min.z - radius
-        else pos.z = max.z + radius
-      }
-    }
-  })
+    });
+  }
 
   // Killfloor
-  const killHeight = -10
-  if (local.pos.y < killHeight) local.health = 0
+  if (local.pos.y < -10) {
+    local.health = 0;
+  }
 
   if (local.health <= 0) {
-    local.pos.set(0, 2.5, 0)
-    local.vel.set(0, 0, 0)
-    local.health = 100
+    local.pos.set(0, 2.5, 0);
+    local.vel.set(0, 0, 0);
+    local.health = 100;
   }
 
   // Jump
-  if (local.onGround && keys['Space']) local.vel.y = 12
+  if (local.onGround && keys['Space']) local.vel.y = 12;
 
-  // Animation & mesh
-  const moveLen = move.length()
+  // Animation
+  const moveLen = move.length();
   if (moveLen > 0) {
-    const targetYaw = Math.atan2(move.x, move.z)
-    local.yaw += (targetYaw - local.yaw) * 0.2
-    local.walkTime += dt * 6
-    const swing = Math.sin(local.walkTime) * 0.5
-    local.mesh.shoulderL.rotation.x = swing
-    local.mesh.shoulderR.rotation.x = -swing
-    local.mesh.hipL.rotation.x = -swing
-    local.mesh.hipR.rotation.x = swing
-  } else local.walkTime = 0
+    const targetYaw = Math.atan2(move.x, move.z);
+    local.yaw += (targetYaw - local.yaw) * 0.2;
+    local.walkTime += dt * 6;
+    const swing = Math.sin(local.walkTime) * 0.5;
+    local.mesh.shoulderL.rotation.x = swing;
+    local.mesh.shoulderR.rotation.x = -swing;
+    local.mesh.hipL.rotation.x = -swing;
+    local.mesh.hipR.rotation.x = swing;
+  } else local.walkTime = 0;
 
   // Update mesh position
-  const meshHeight = 2.2
+  const meshHeight = 2.2;
   local.mesh.group.position.set(
     local.pos.x,
-    local.pos.y - 1.25 + meshHeight / 2 - 0.1,
+    local.pos.y - (playerHeight / 2) + (meshHeight / 2) - 0.1,
     local.pos.z
-  )
-  local.mesh.group.rotation.y = local.yaw
+  );
+  local.mesh.group.rotation.y = local.yaw;
 
   // Camera
-  const camTarget = local.pos.clone().add(new THREE.Vector3(0, 1.2, 0))
+  const camTarget = local.pos.clone().add(new THREE.Vector3(0, 1.2, 0));
   const dir = new THREE.Vector3(
     Math.sin(local.cam.yaw) * Math.cos(local.cam.pitch),
     Math.sin(local.cam.pitch),
     Math.cos(local.cam.yaw) * Math.cos(local.cam.pitch)
-  )
-  camera.position.copy(camTarget.clone().addScaledVector(dir, local.cam.dist))
-  camera.lookAt(camTarget)
+  );
+  camera.position.copy(camTarget.clone().addScaledVector(dir, local.cam.dist));
+  camera.lookAt(camTarget);
 
-  socket.emit('move', { x: pos.x, y: pos.y, z: pos.z, yaw: local.yaw, name: local.name })
+  // Send position to server
+  socket.emit('move', { x: local.pos.x, y: local.pos.y, z: local.pos.z, yaw: local.yaw, name: local.name });
 }
 function updatePreviewBlock() {
     if (!activeTool) {
@@ -440,6 +436,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
