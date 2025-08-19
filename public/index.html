@@ -8,7 +8,7 @@
 body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
 .tool{padding:6px 12px;border:1px solid #fff;border-radius:4px;cursor:pointer;user-select:none;}
-.tool.active{background:#4cc3ff;color:#777;}
+.tool.active{background:#4cc3ff;color:#000;}
 #status{position:fixed;top:8px;left:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
 #nameInput{position:fixed;top:8px;right:8px;z-index:5;padding:4px;}
 #playerList{position:fixed;top:50px;right:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
@@ -44,9 +44,6 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 <div id="healthContainer">
   <div id="healthBar"></div>
 </div>
-<input type="text" id="blockColor" value="#ffffff" placeholder="#hex" 
-  style="position:fixed;bottom:8px;right:8px;width:70px;padding:4px;border-radius:4px;border:none;font-family:sans-serif;z-index:5;">
-
 
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
@@ -67,35 +64,14 @@ scene.add(sun);
 const textureLoader=new THREE.TextureLoader();
 const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);});
 
-function getBlockColor() {
-  const hexInput = document.getElementById('blockColor')
-  if(!hexInput) return 0xffffff
-  const hex = hexInput.value || '#ffffff'
-  return parseInt(hex.replace('#',''), 16) || 0xffffff
-}
-
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
-function makeBlock(x, y, z, indestructible=false, color) {
-  const k = keyOf(x, y, z)
-  if(blockIndex.has(k)) return
-
-  if(color === undefined) color = getBlockColor()
-
-  const material = new THREE.MeshStandardMaterial({
-    map: studTexture,
-    color: color
-  })
-
-  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material)
-  b.position.set(x+0.5, y+0.5, z+0.5)
-  scene.add(b)
-  blocks.push(b)
-  blockIndex.set(k, b)
-
-  if(indestructible) indestructibleBlocks.add(b)
-  return b
+function makeBlock(x,y,z,indestructible=false){
+  const k=keyOf(x,y,z); if(blockIndex.has(k)) return;
+  const b=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({map:studTexture}));
+  b.position.set(x+0.5,y+0.5,z+0.5); scene.add(b); blocks.push(b); blockIndex.set(k,b);
+  if(indestructible) indestructibleBlocks.add(b); return b;
 }
 function removeBlockAt(x,y,z){
   const k=keyOf(x,y,z), m=blockIndex.get(k); if(!m||indestructibleBlocks.has(m)) return false;
@@ -170,13 +146,7 @@ window.addEventListener('pointerdown',e=>{
   raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(blocks);
   if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
-  if(activeTool==='build') {
-    if(!blockIndex.has(keyOf(x,y,z))){
-      const color = getBlockColor()
-      makeBlock(x, y, z, false, color)
-      socket.emit('build', {x, y, z, color})
-    }
-  }
+  if(activeTool==='build'){ if(!blockIndex.has(keyOf(x,y,z))){ makeBlock(x,y,z); socket.emit('build',{x,y,z}); } }
   else if(activeTool==='remove'){ const bx=Math.floor(hit.object.position.x-0.5),by=Math.floor(hit.object.position.y-0.5),bz=Math.floor(hit.object.position.z-0.5); if(removeBlockAt(bx,by,bz)) socket.emit('remove',{x:bx,y:by,z:bz}); }
 }});
 
@@ -197,9 +167,9 @@ function makeNametagSprite(text){
 function spawnOther(id,p){
   if(others.has(id))return;
   const {group,parts}=makeAvatar(0xff4444,0x3333ff);
-  group.position.set(p.x,p.y - 0.1,p.z);
+  group.position.set(p.x,p.y,p.z);
   const nametagObj=makeNametagSprite(p.name||"Player");
-  nametagObj.sprite.position.set(0,2.1,0); group.add(nametagObj.sprite);
+  nametagObj.sprite.position.set(0,2.2,0); group.add(nametagObj.sprite);
   scene.add(group);
   others.set(id,{group,...parts,nametag:nametagObj,pos:new THREE.Vector3(p.x,p.y,p.z),walkTime:0,name:p.name||"Player"});
   updatePlayerList();
@@ -244,125 +214,135 @@ socket.on('player-update',({id,x,y,z,yaw,name})=>{
 });
 
 /* ---------- BUILD/REMOVE LISTEN ---------- */
-socket.on('build', ({x,y,z,color}) => {
-  makeBlock(x,y,z,false,color)
-})
+socket.on('build',({x,y,z})=>{ makeBlock(x,y,z); });
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
 
 /* ---------- PHYSICS & ANIMATION ---------- */
 function step(dt) {
-  const forward = new THREE.Vector3(-Math.sin(local.cam.yaw), 0, -Math.cos(local.cam.yaw))
-  const right = new THREE.Vector3(Math.cos(local.cam.yaw), 0, -Math.sin(local.cam.yaw))
+    const forward = new THREE.Vector3(-Math.sin(local.cam.yaw), 0, -Math.cos(local.cam.yaw));
+    const right = new THREE.Vector3(Math.cos(local.cam.yaw), 0, -Math.sin(local.cam.yaw));
 
-  // Movement input
-  let move = new THREE.Vector3()
-  if (keys['KeyW']) move.add(forward)
-  if (keys['KeyS']) move.sub(forward)
-  if (keys['KeyA']) move.sub(right)
-  if (keys['KeyD']) move.add(right)
-  if (move.length() > 0) move.normalize().multiplyScalar(5 * dt)
+    // Movement input
+    let move = new THREE.Vector3();
+    if (keys['KeyW']) move.add(forward);
+    if (keys['KeyS']) move.sub(forward);
+    if (keys['KeyA']) move.sub(right);
+    if (keys['KeyD']) move.add(right);
+    if (move.length() > 0) move.normalize().multiplyScalar(5 * dt);
 
-  // Apply horizontal movement first
-  local.pos.add(new THREE.Vector3(move.x, 0, move.z))
+    // Apply horizontal movement first
+    local.pos.add(new THREE.Vector3(move.x, 0, move.z));
 
-  // Apply gravity
-  local.vel.y += -20 * dt
-  local.pos.y += local.vel.y * dt
+    // Horizontal collisions
+    const radius = 0.4;
+    blocks.forEach(b => {
+        const min = b.position.clone().subScalar(0.5);
+        const max = b.position.clone().addScalar(0.5);
 
-  // --- Smooth collision resolution ---
-  const radius = 0.4
-  const halfHeight = 1.25
-  const pos = local.pos
-  const vel = local.vel
+        // X axis
+        if (local.pos.z + radius > min.z && local.pos.z - radius < max.z &&
+            local.pos.y - 1.25 < max.y && local.pos.y + 1.25 > min.y) {
+            if (local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
+                if (local.pos.x < b.position.x) local.pos.x = min.x - radius;
+                else local.pos.x = max.x + radius;
+            }
+        }
 
-  local.onGround = false
+        // Z axis
+        if (local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+            local.pos.y - 1.25 < max.y && local.pos.y + 1.25 > min.y) {
+            if (local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+                if (local.pos.z < b.position.z) local.pos.z = min.z - radius;
+                else local.pos.z = max.z + radius;
+            }
+        }
+    });
 
-  blocks.forEach(b => {
-    const min = b.position.clone().subScalar(0.5)
-    const max = b.position.clone().addScalar(0.5)
+    // Gravity
+    local.vel.y += -20 * dt;
+    local.pos.y += local.vel.y * dt;
 
-    // VERTICAL
-    const bottom = pos.y - halfHeight
-    const top = pos.y + halfHeight
-
-    if (pos.x + radius > min.x && pos.x - radius < max.x &&
-        pos.z + radius > min.z && pos.z - radius < max.z) {
-      if (vel.y <= 0 && bottom < max.y && bottom > min.y) {
-        pos.y = max.y + halfHeight
-        vel.y = 0
-        local.onGround = true
-      } else if (vel.y > 0 && top > min.y && top < max.y) {
-        pos.y = min.y - halfHeight
-        vel.y = 0
-      }
+    // --- Killfloor ---
+    const killHeight = -10; // Y position below which the player dies
+    if (local.pos.y < killHeight) {
+        local.health = 0; // triggers respawn logic
+    }
+  
+    if (local.health <= 0) {
+      // Respawn in the middle of the map
+      local.pos.set(0, 2.5, 0);   // 2.5 is player height offset
+      local.vel.set(0, 0, 0);
+      local.health = 100;          // reset health
     }
 
-    // HORIZONTAL X
-    if (pos.y - halfHeight < max.y && pos.y + halfHeight > min.y &&
-        pos.z + radius > min.z && pos.z - radius < max.z) {
-      if (pos.x + radius > min.x && pos.x - radius < max.x) {
-        if (pos.x < b.position.x) pos.x = min.x - radius
-        else pos.x = max.x + radius
-      }
-    }
+    // Vertical collisions
+    const playerHeight = 2.5;
+    const halfHeight = playerHeight / 2;
+    local.onGround = false;
 
-    // HORIZONTAL Z
-    if (pos.y - halfHeight < max.y && pos.y + halfHeight > min.y &&
-        pos.x + radius > min.x && pos.x - radius < max.x) {
-      if (pos.z + radius > min.z && pos.z - radius < max.z) {
-        if (pos.z < b.position.z) pos.z = min.z - radius
-        else pos.z = max.z + radius
-      }
-    }
-  })
+    blocks.forEach(b => {
+        const min = b.position.clone().subScalar(0.5);
+        const max = b.position.clone().addScalar(0.5);
 
-  // Killfloor
-  const killHeight = -10
-  if (local.pos.y < killHeight) local.health = 0
+        // XZ overlap
+        if (local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+            local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
 
-  if (local.health <= 0) {
-    local.pos.set(0, 2.5, 0)
-    local.vel.set(0, 0, 0)
-    local.health = 100
-  }
+            const bottom = local.pos.y - halfHeight;
+            const top = local.pos.y + halfHeight;
 
-  // Jump
-  if (local.onGround && keys['Space']) local.vel.y = 12
+            // Falling down
+            if (local.vel.y <= 0 && bottom < max.y && bottom > min.y) {
+                local.pos.y = max.y + halfHeight;
+                local.vel.y = 0;
+                local.onGround = true;
+            }
+            // Moving up
+            else if (local.vel.y > 0 && top > min.y && top < max.y) {
+                local.pos.y = min.y - halfHeight;
+                local.vel.y = 0;
+            }
+        }
+    });
 
-  // Animation & mesh
-  const moveLen = move.length()
-  if (moveLen > 0) {
-    const targetYaw = Math.atan2(move.x, move.z)
-    local.yaw += (targetYaw - local.yaw) * 0.2
-    local.walkTime += dt * 6
-    const swing = Math.sin(local.walkTime) * 0.5
-    local.mesh.shoulderL.rotation.x = swing
-    local.mesh.shoulderR.rotation.x = -swing
-    local.mesh.hipL.rotation.x = -swing
-    local.mesh.hipR.rotation.x = swing
-  } else local.walkTime = 0
+    // Jump
+    if (local.onGround && keys['Space']) local.vel.y = 12;
 
-  // Update mesh position
-  const meshHeight = 2.2
-  local.mesh.group.position.set(
+    // Animation & mesh
+    const moveLen = move.length();
+    if (moveLen > 0) {
+        const targetYaw = Math.atan2(move.x, move.z);
+        local.yaw += (targetYaw - local.yaw) * 0.2;
+        local.walkTime += dt * 6;
+        const swing = Math.sin(local.walkTime) * 0.5;
+        local.mesh.shoulderL.rotation.x = swing;
+        local.mesh.shoulderR.rotation.x = -swing;
+        local.mesh.hipL.rotation.x = -swing;
+        local.mesh.hipR.rotation.x = swing;
+    } else local.walkTime = 0;
+
+   // Update mesh position to align with hitbox
+const meshHeight = 2.2; // actual height of the player mesh (torso + head)
+local.mesh.group.position.set(
     local.pos.x,
-    local.pos.y - 1.25 + meshHeight / 2 - 0.1,
+    local.pos.y - (playerHeight / 2) + (meshHeight / 2) - .1,
     local.pos.z
-  )
-  local.mesh.group.rotation.y = local.yaw
+);
+local.mesh.group.rotation.y = local.yaw;
 
-  // Camera
-  const camTarget = local.pos.clone().add(new THREE.Vector3(0, 1.2, 0))
-  const dir = new THREE.Vector3(
-    Math.sin(local.cam.yaw) * Math.cos(local.cam.pitch),
-    Math.sin(local.cam.pitch),
-    Math.cos(local.cam.yaw) * Math.cos(local.cam.pitch)
-  )
-  camera.position.copy(camTarget.clone().addScaledVector(dir, local.cam.dist))
-  camera.lookAt(camTarget)
+    // Camera
+    const camTarget = local.pos.clone().add(new THREE.Vector3(0, 1.2, 0)); // focus point
+    const dir = new THREE.Vector3(
+        Math.sin(local.cam.yaw) * Math.cos(local.cam.pitch),
+        Math.sin(local.cam.pitch),
+        Math.cos(local.cam.yaw) * Math.cos(local.cam.pitch)
+    );
+    camera.position.copy(camTarget.clone().addScaledVector(dir, local.cam.dist));
+    camera.lookAt(camTarget);
 
-  socket.emit('move', { x: pos.x, y: pos.y, z: pos.z, yaw: local.yaw, name: local.name })
+    socket.emit('move', { x: local.pos.x, y: local.pos.y, z: local.pos.z, yaw: local.yaw, name: local.name });
 }
+
 function updatePreviewBlock() {
     if (!activeTool) {
         previewBlock.visible = false;
@@ -440,15 +420,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 
 
 
