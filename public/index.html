@@ -78,15 +78,15 @@ function makeBlock(x, y, z, colorHex = 0xffffff, indestructible = false) {
     new THREE.MeshStandardMaterial({
       map: studTexture,
       color: colorHex
-    })
+      })
   );
-  b.position.set(x + 0.5, y + 0.5, z + 0.5);
-  scene.add(b);
-  blocks.push(b);
-  blockIndex.set(k, b);
+    b.position.set(x + 0.5, y + 0.5, z + 0.5);
+    scene.add(b);
+    blocks.push(b);
+    blockIndex.set(k, b);
 
-  if (indestructible) indestructibleBlocks.add(b);
-  return b;
+    if (indestructible) indestructibleBlocks.add(b);
+    return b;
 }
 function removeBlockAt(x,y,z){
   const k=keyOf(x,y,z), m=blockIndex.get(k); if(!m||indestructibleBlocks.has(m)) return false;
@@ -446,8 +446,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
 
 
 
