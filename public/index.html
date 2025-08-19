@@ -261,7 +261,13 @@ function step(dt) {
     if (keys['KeyS']) move.sub(forward);
     if (keys['KeyA']) move.sub(right);
     if (keys['KeyD']) move.add(right);
-    if (move.length() > 0) move.normalize().multiplyScalar(5 * dt);
+
+    if (move.length() > 0) {
+      move.normalize();
+      let speed = 5;
+      if (keys['ShiftLeft'] || keys['ShiftRight']) speed *= 1.5; // faster when Shift
+      move.multiplyScalar(speed * dt);
+    }
 
     // Apply horizontal movement first
     local.pos.add(new THREE.Vector3(move.x, 0, move.z));
@@ -449,6 +455,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
