@@ -53,6 +53,19 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
+
+// --- Cookie Helpers ---
+function setCookie(name, value, days = 365) {
+    const d = new Date();
+    d.setTime(d.getTime() + (days*24*60*60*1000));
+    document.cookie = name + "=" + encodeURIComponent(value) + ";expires=" + d.toUTCString() + ";path=/";
+}
+
+function getCookie(name) {
+    const value = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return value ? decodeURIComponent(value.pop()) : null;
+}
+
 /* ---------- THREE.JS SETUP ---------- */
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x88ccff);
@@ -184,7 +197,19 @@ window.addEventListener('pointerdown',e=>{
 /* ---------- SOCKET.IO ---------- */
 const socket=io(), statusEl=document.getElementById('status'), nameInput=document.getElementById('nameInput'), playerList=document.getElementById('playerList');
 nameInput.value=local.name;
-nameInput.addEventListener('change',()=>{ local.name=nameInput.value; socket.emit('name-change',{name:local.name}); });
+// Load name from cookie if exists
+const savedName = getCookie('playerName');
+if(savedName) {
+    local.name = savedName;
+    nameInput.value = savedName;
+}
+
+// Listen for name changes
+nameInput.addEventListener('change', () => {
+    local.name = nameInput.value;
+    setCookie('playerName', local.name);  // save to cookie
+    socket.emit('name-change', {name: local.name});
+});
 
 const others=new Map();
 function makeNametagSprite(text){
@@ -455,6 +480,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
