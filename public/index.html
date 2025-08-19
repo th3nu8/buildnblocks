@@ -198,7 +198,7 @@ function makeNametagSprite(text){
 function spawnOther(id,p){
   if(others.has(id))return;
   const {group,parts}=makeAvatar(0xff4444,0x3333ff);
-  group.position.set(p.x,p.y - 1,p.z);
+  group.position.set(p.x,p.y,p.z);
   const nametagObj=makeNametagSprite(p.name||"Player");
   nametagObj.sprite.position.set(0,2.1,0); group.add(nametagObj.sprite);
   scene.add(group);
@@ -218,7 +218,7 @@ socket.on('connect', () => {
     // Send initial join info
     socket.emit('join', {
         x: local.pos.x,
-        y: local.pos.y,
+        y: local.pos.y - 1,
         z: local.pos.z,
         yaw: local.yaw,
         name: local.name
@@ -449,6 +449,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
