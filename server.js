@@ -1,84 +1,47 @@
 // server.js
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
+
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const server = http.createServer(app);
+const io = new Server(server);
 
-// Serve the Public folder
-app.use(express.static(__dirname + '/Public'));
+// Serve static files from the Public folder
+app.use(express.static(path.join(__dirname, 'Public')));
 
-// Serve index.html explicitly
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/Public/index.html');
-});
+// Store block data: {x|y|z: {x, y, z, color}}
+const blocks = {};
 
-// ---- GAME STATE ----
-const blocks = new Map(); // key: "x|y|z" -> { x, y, z }
-const players = {};       // playerId -> { x, y, z, name }
-
-// Helper to get key from coordinates
-function keyOf(x, y, z) {
-    return `${x}|${y}|${z}`;
-}
-
-// ---- SOCKET.IO ----
+// Handle socket connections
 io.on('connection', socket => {
-    console.log(`Player connected: ${socket.id}`);
+  console.log('A user connected:', socket.id);
 
-    // Send current blocks & players to the new client
-    socket.emit('init', {
-        blocks: Array.from(blocks.values()),
-        players
-    });
+  // Send current blocks to new player
+  socket.emit('init', { blocks: Object.values(blocks) });
 
-    // When a player joins
-    socket.on('join', data => {
-        players[socket.id] = { x: data.x, y: data.y, z: data.z, name: data.name };
-        socket.broadcast.emit('player-join', { id: socket.id, ...players[socket.id] });
-    });
+  // When a player builds a block
+  socket.on('build', data => {
+    const key = `${data.x}|${data.y}|${data.z}`;
+    blocks[key] = { x: data.x, y: data.y, z: data.z, color: data.color || 0xffffff };
+    io.emit('build', blocks[key]);
+  });
 
-    // When a player moves
-    socket.on('move', data => {
-        if (players[socket.id]) {
-            players[socket.id] = { ...players[socket.id], ...data };
-            socket.broadcast.emit('player-update', { id: socket.id, ...data });
-        }
-    });
+  // When a player removes a block
+  socket.on('remove', data => {
+    const key = `${data.x}|${data.y}|${data.z}`;
+    delete blocks[key];
+    io.emit('remove', { x: data.x, y: data.y, z: data.z });
+  });
 
-    // When a block is built
-    socket.on('build', data => {
-        const k = keyOf(data.x, data.y, data.z);
-        if (!blocks.has(k)) {
-            blocks.set(k, { x: data.x, y: data.y, z: data.z, color: data.color || 0x00ff00 });
-            io.emit('build', blocks.get(k)); // broadcast to all
-        }
-    });
-
-    // When a block is removed
-    socket.on('remove', data => {
-        const k = keyOf(data.x, data.y, data.z);
-        if (blocks.has(k)) {
-            blocks.delete(k);
-            io.emit('remove', data);
-        }
-    });
-
-    // When player changes name
-    socket.on('name-change', data => {
-        if (players[socket.id]) {
-            players[socket.id].name = data.name;
-            socket.broadcast.emit('player-update', { id: socket.id, name: data.name });
-        }
-    });
-
-    // When player disconnects
-    socket.on('disconnect', () => {
-        console.log(`Player disconnected: ${socket.id}`);
-        delete players[socket.id];
-        socket.broadcast.emit('player-leave', { id: socket.id });
-    });
+  socket.on('disconnect', () => {
+    console.log('A user disconnected:', socket.id);
+  });
 });
 
-// ---- START SERVER ----
+// Start server
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
