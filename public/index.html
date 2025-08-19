@@ -269,52 +269,53 @@ function step(dt) {
   local.vel.y += -20 * dt;
   local.pos.y += local.vel.y * dt;
 
-  // Collision parameters
   const radius = 0.4;
-  const playerHeight = 2.5;
-  const halfHeight = playerHeight / 2;
+  const halfHeight = 2.5 / 2;
   local.onGround = false;
 
-  // --- MULTI-PASS COLLISION RESOLUTION ---
-  const maxIterations = 3; // number of collision passes per frame
-  for (let iter = 0; iter < maxIterations; iter++) {
-    blocks.forEach(b => {
-      const min = b.position.clone().subScalar(0.5);
-      const max = b.position.clone().addScalar(0.5);
+  // Collision resolution
+  blocks.forEach(b => {
+    const min = b.position.clone().subScalar(0.5);
+    const max = b.position.clone().addScalar(0.5);
 
-      // --- HORIZONTAL COLLISIONS (X/Z) ---
-      const dx = Math.max(min.x - (local.pos.x + radius), 0, local.pos.x - radius - max.x);
-      const dz = Math.max(min.z - (local.pos.z + radius), 0, local.pos.z - radius - max.z);
-      if (dx !== 0) local.pos.x += dx;
-      if (dz !== 0) local.pos.z += dz;
+    // --- HORIZONTAL COLLISIONS (X) ---
+    if (local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y &&
+        local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+      if (local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
+        const overlap = (local.pos.x + radius) - min.x < max.x - (local.pos.x - radius) ?
+                        (local.pos.x + radius) - min.x : (local.pos.x - radius) - max.x;
+        local.pos.x -= overlap;
+      }
+    }
 
-      // --- VERTICAL COLLISIONS (Y) ---
-      const bottom = local.pos.y - halfHeight;
-      const top = local.pos.y + halfHeight;
+    // --- HORIZONTAL COLLISIONS (Z) ---
+    if (local.pos.y - halfHeight < max.y && local.pos.y + halfHeight > min.y &&
+        local.pos.x + radius > min.x && local.pos.x - radius < max.x) {
+      if (local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+        const overlap = (local.pos.z + radius) - min.z < max.z - (local.pos.z - radius) ?
+                        (local.pos.z + radius) - min.z : (local.pos.z - radius) - max.z;
+        local.pos.z -= overlap;
+      }
+    }
 
-      // Landing on top of a block
-      if (local.vel.y <= 0 && bottom < max.y && bottom > min.y &&
-          local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
-          local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+    // --- VERTICAL COLLISIONS (Y) ---
+    const bottom = local.pos.y - halfHeight;
+    const top = local.pos.y + halfHeight;
+    if (local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
+        local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+      if (local.vel.y <= 0 && bottom < max.y && bottom > min.y) {
         local.pos.y = max.y + halfHeight;
         local.vel.y = 0;
         local.onGround = true;
-      }
-      // Hitting the bottom of a block
-      else if (local.vel.y > 0 && top > min.y && top < max.y &&
-          local.pos.x + radius > min.x && local.pos.x - radius < max.x &&
-          local.pos.z + radius > min.z && local.pos.z - radius < max.z) {
+      } else if (local.vel.y > 0 && top > min.y && top < max.y) {
         local.pos.y = min.y - halfHeight;
         local.vel.y = 0;
       }
-    });
-  }
+    }
+  });
 
   // Killfloor
-  if (local.pos.y < -10) {
-    local.health = 0;
-  }
-
+  if (local.pos.y < -10) local.health = 0;
   if (local.health <= 0) {
     local.pos.set(0, 2.5, 0);
     local.vel.set(0, 0, 0);
@@ -337,11 +338,10 @@ function step(dt) {
     local.mesh.hipR.rotation.x = swing;
   } else local.walkTime = 0;
 
-  // Update mesh position
   const meshHeight = 2.2;
   local.mesh.group.position.set(
     local.pos.x,
-    local.pos.y - (playerHeight / 2) + (meshHeight / 2) - 0.1,
+    local.pos.y - halfHeight + (meshHeight / 2) - 0.1,
     local.pos.z
   );
   local.mesh.group.rotation.y = local.yaw;
@@ -436,6 +436,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
