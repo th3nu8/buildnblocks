@@ -455,41 +455,47 @@ function step(dt) {
 
     local.onGround = false;
 
-    blocks.forEach(b => {
-        const min = b.position.clone().subScalar(0.5);
-        const max = b.position.clone().addScalar(0.5);
+    let minOverlap = Infinity;
+    let resolveAxis = null;
+    let resolveValue = 0;
 
-        if (playerMax.x > min.x && playerMin.x < max.x &&
-            playerMax.y > min.y && playerMin.y < max.y &&
-            playerMax.z > min.z && playerMin.z < max.z) {
+    blocks.forEach(block => {
+        if (!block.geometry || !block.geometry.boundingBox) return;
 
-            const overlapX = Math.min(playerMax.x - min.x, max.x - playerMin.x);
-            const overlapY = Math.min(playerMax.y - min.y, max.y - playerMin.y);
-            const overlapZ = Math.min(playerMax.z - min.z, max.z - playerMin.z);
+        const blockMin = block.position.clone().add(block.geometry.boundingBox.min);
+        const blockMax = block.position.clone().add(block.geometry.boundingBox.max);
 
-            const minOverlap = Math.min(overlapX, overlapY, overlapZ);
+        const overlapX = Math.min(playerMax.x - blockMin.x, blockMax.x - playerMin.x);
+        const overlapY = Math.min(playerMax.y - blockMin.y, blockMax.y - playerMin.y);
+        const overlapZ = Math.min(playerMax.z - blockMin.z, blockMax.z - playerMin.z);
 
-            if (minOverlap === overlapY) {
-                // Vertical
-                if (local.vel.y <= 0 && (playerMin.y < max.y)) {
-                    local.pos.y = max.y + halfHeight;
-                    local.vel.y = 0;
-                    local.onGround = true;
-                } else if (local.vel.y > 0) {
-                    local.pos.y -= overlapY;
-                    local.vel.y = 0;
-                }
-            } else if (minOverlap === overlapX) {
-                // X axis
-                if (local.pos.x < b.position.x) local.pos.x -= (overlapX);
-                else local.pos.x += (overlapX);
-            } else {
-                // Z axis
-                if (local.pos.z < b.position.z) local.pos.z -= (overlapZ);
-                else local.pos.z += (overlapZ);
+        if (overlapX > 0 && overlapY > 0 && overlapZ > 0) {
+            // find the smallest overlap
+            if (overlapX < minOverlap) {
+                minOverlap = overlapX;
+                resolveAxis = 'x';
+                resolveValue = (player.pos.x < block.position.x) ? -overlapX : overlapX;
+            }
+            if (overlapY < minOverlap) {
+                minOverlap = overlapY;
+                resolveAxis = 'y';
+                resolveValue = (player.pos.y < block.position.y) ? -overlapY : overlapY;
+            }
+            if (overlapZ < minOverlap) {
+                minOverlap = overlapZ;
+                resolveAxis = 'z';
+                resolveValue = (player.pos.z < block.position.z) ? -overlapZ : overlapZ;
             }
         }
     });
+
+// ✅ apply only the single smallest push
+if (resolveAxis) {
+  player.pos[resolveAxis] += resolveValue;
+  if (resolveAxis === 'y' && resolveValue > 0) {
+    player.vel.y = 0; // grounded
+  }
+}
 
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
@@ -604,5 +610,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
