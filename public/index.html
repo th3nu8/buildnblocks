@@ -10,6 +10,7 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
 .tool{padding:6px 12px;border:1px solid #fff;border-radius:4px;cursor:pointer;user-select:none;}
 .tool.active{background:#4cc3ff;color:#777;}
+#status{position:fixed;top:8px;left:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
 #nameInput{position:fixed;top:8px;right:8px;z-index:5;padding:4px;}
 #playerList{position:fixed;top:50px;right:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
 #healthContainer {
@@ -31,38 +32,9 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
   background: #4cc3ff;
   transition: width 0.2s ease;
 }
-#saveLoadContainer {
-  position: fixed;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 5;
-}
-
-#saveLoadContainer button {
-  padding: 6px 12px;
-  border: 1px solid #fff;
-  border-radius: 4px;
-  background: rgba(0,0,0,0.5);
-  color: #fff;
-  cursor: pointer;
-  font-family: sans-serif;
-}
-
-#saveLoadContainer button:hover {
-  background: rgba(76,195,255,0.8);
-  color: #222;
-}
 </style>
 </head>
 <body>
-<div id="topbar" style="position:absolute;top:10px;left:10px;z-index:10;">
-  <button id="saveBtn">Save</button>
-  <button id="loadBtn">Load</button>
-  <input type="file" id="fileInput" style="display:none" />
-</div>
 <div id="saveLoadContainer">
   <button id="save-world">💾 Save</button>
   <button id="load-world">📂 Load</button>
@@ -149,21 +121,6 @@ function removeBlockAt(x,y,z){
 }
 for(let x=-25;x<25;x++)for(let z=-25;z<25;z++)makeBlock(x,0,z,true);
 
-const saveBtn = document.getElementById('save-world')
-const loadBtn = document.getElementById('load-world')
-
-saveBtn.onclick = () => socket.emit('save-world')
-loadBtn.onclick = () => socket.emit('load-world')
-
-socket.on('world-saved', () => alert('World saved!'))
-
-socket.on('world-loaded', loadedBlocks => {
-  blocks.forEach(b => { if(!indestructibleBlocks.has(b)) scene.remove(b) })
-  blocks.length = 0
-  blockIndex.clear()
-  loadedBlocks.forEach(b => makeBlock(b.x, b.y, b.z, false, b.color))
-})
-
 // ---------- BUILD PREVIEW BLOCK ----------
 const previewMaterial = new THREE.MeshStandardMaterial({color: 0x00ff00, transparent: true, opacity: 0.5});
 const previewGeometry = new THREE.BoxGeometry(1,1,1);
@@ -243,6 +200,25 @@ window.addEventListener('pointerdown',e=>{
 
 /* ---------- SOCKET.IO ---------- */
 const socket=io(), statusEl=document.getElementById('status'), nameInput=document.getElementById('nameInput'), playerList=document.getElementById('playerList');
+
+const saveBtn = document.getElementById('save-world')
+const loadBtn = document.getElementById('load-world')
+
+saveBtn.onclick = () => socket.emit('save-world')
+loadBtn.onclick = () => socket.emit('load-world')
+
+socket.on('world-saved', () => alert('World saved!'))
+
+socket.on('world-loaded', loadedBlocks => {
+  // Remove current blocks (except indestructible)
+  blocks.forEach(b => { if(!indestructibleBlocks.has(b)) scene.remove(b) })
+  blocks.length = 0
+  blockIndex.clear()
+
+  // Spawn blocks from loaded world
+  loadedBlocks.forEach(b => makeBlock(b.x, b.y, b.z, false, b.color))
+})
+  
 nameInput.value=local.name;
 // Load name from cookie if exists
 const savedName = getCookie('playerName');
@@ -527,8 +503,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
