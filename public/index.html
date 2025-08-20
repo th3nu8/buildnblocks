@@ -35,10 +35,6 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 </style>
 </head>
 <body>
-<div id="saveLoadContainer">
-  <button id="save-world">💾 Save</button>
-  <button id="load-world">📂 Load</button>
-</div>
 <div id="toolbar">
   <div class="tool" id="tool-build">Build (1)</div>
   <div class="tool" id="tool-remove">Remove (2)</div>
@@ -200,25 +196,6 @@ window.addEventListener('pointerdown',e=>{
 
 /* ---------- SOCKET.IO ---------- */
 const socket=io(), statusEl=document.getElementById('status'), nameInput=document.getElementById('nameInput'), playerList=document.getElementById('playerList');
-
-const saveBtn = document.getElementById('save-world')
-const loadBtn = document.getElementById('load-world')
-
-saveBtn.onclick = () => socket.emit('save-world')
-loadBtn.onclick = () => socket.emit('load-world')
-
-socket.on('world-saved', () => alert('World saved!'))
-
-socket.on('world-loaded', loadedBlocks => {
-  // Remove current blocks (except indestructible)
-  blocks.forEach(b => { if(!indestructibleBlocks.has(b)) scene.remove(b) })
-  blocks.length = 0
-  blockIndex.clear()
-
-  // Spawn blocks from loaded world
-  loadedBlocks.forEach(b => makeBlock(b.x, b.y, b.z, false, b.color))
-})
-  
 nameInput.value=local.name;
 // Load name from cookie if exists
 const savedName = getCookie('playerName');
