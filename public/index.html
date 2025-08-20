@@ -35,6 +35,11 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 </style>
 </head>
 <body>
+<div id="topbar">
+  <button id="saveBtn">Save</button>
+  <button id="loadBtn">Load</button>
+  <input type="file" id="fileInput" style="display:none" />
+</div>
 <div id="toolbar">
   <div class="tool" id="tool-build">Build (1)</div>
   <div class="tool" id="tool-remove">Remove (2)</div>
@@ -275,6 +280,55 @@ socket.on('build', ({x,y,z,color}) => {
 })
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
 
+// --- SAVE FUNCTION ---
+document.getElementById("saveBtn").addEventListener("click", () => {
+  const blockData = blocks.map(b => ({
+    x: b.position.x,
+    y: b.position.y,
+    z: b.position.z,
+    color: b.material.color.getHex()
+  }));
+
+  const blob = new Blob([JSON.stringify(blockData)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "buildnblocks_save.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// --- LOAD FUNCTION ---
+document.getElementById("loadBtn").addEventListener("click", () => {
+  document.getElementById("fileInput").click();
+});
+
+document.getElementById("fileInput").addEventListener("change", event => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = JSON.parse(e.target.result);
+
+    // remove old blocks first (but not the ground or player)
+    blocks.forEach(b => scene.remove(b));
+    blocks.length = 0;
+
+    // rebuild blocks
+    data.forEach(item => {
+      const blockGeo = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+      const blockMat = new THREE.MeshStandardMaterial({ color: item.color });
+      const block = new THREE.Mesh(blockGeo, blockMat);
+      block.position.set(item.x, item.y, item.z);
+      scene.add(block);
+      blocks.push(block);
+    });
+  };
+  reader.readAsText(file);
+});
+
 /* ---------- PHYSICS & ANIMATION ---------- */
 function step(dt) {
     const forward = new THREE.Vector3(-Math.sin(local.cam.yaw), 0, -Math.cos(local.cam.yaw));
@@ -480,3 +534,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
