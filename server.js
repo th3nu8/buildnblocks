@@ -1,69 +1,169 @@
-const express = require('express')
-const http = require('http')
-const { Server } = require('socket.io')
+// ---- server.js ----
+const path = require('path');
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 
-const app = express()
-const server = http.createServer(app)
-const io = new Server(server)
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
-app.use(express.static('public')) // serve index.html, stud.png, etc.
+app.use(express.static(path.join(__dirname, 'public'))); // serve index.html, stud.png, etc.
 
-const blocks = [] // store blocks as {x, y, z, color}
-const players = {} // id -> player info
+const GROUND_MIN = -25;
+const GROUND_MAX = 24; // inclusive
+const GROUND_Y = 0;
 
+// ----- WORLD STATE -----
+/**
+ * We store blocks by key "x|y|z"
+ * { x, y, z, color, indestructible }
+ */
+const blocks = new Map();
+const players = new Map(); // id -> { x,y,z,yaw,name }
+
+/** Key helper */
+const keyOf = (x,y,z) => `${x}|${y}|${z}`;
+
+/** Add a block to world (server-side). Returns true if new. */
+function addBlock(x,y,z, color = 0xffffff, indestructible = false) {
+  const k = keyOf(x,y,z);
+  if (blocks.has(k)) return false;
+  blocks.set(k, { x, y, z, color, indestructible });
+  return true;
+}
+
+/** Remove a block if not indestructible */
+function removeBlock(x,y,z) {
+  const k = keyOf(x,y,z);
+  const b = blocks.get(k);
+  if (!b || b.indestructible) return false;
+  blocks.delete(k);
+  return true;
+}
+
+/** Build the indestructible ground platform once */
+function buildGround() {
+  for (let x = GROUND_MIN; x <= GROUND_MAX; x++) {
+    for (let z = GROUND_MIN; z <= GROUND_MAX; z++) {
+      addBlock(x, GROUND_Y, z, 0xffffff, true);
+    }
+  }
+}
+buildGround();
+
+// ----- VALIDATION LIMITS -----
+const MAX_BLOCKS_UPLOAD = 10000;
+const MIN_COORD = -512;
+const MAX_COORD = 512;
+
+// ----- SOCKET -----
 io.on('connection', (socket) => {
-  console.log(socket.id, 'connected')
-
-  // Send initial state
+  // Give initial snapshot
   socket.emit('init', {
-    blocks,
-    players
-  })
+    blocks: Array.from(blocks.values()),
+    players: Object.fromEntries(players),
+  });
 
-  // Join
-  socket.on('join', (data) => {
-    players[socket.id] = data
-    socket.broadcast.emit('player-join', {id: socket.id, ...data})
-  })
+  socket.on('join', (p) => {
+    players.set(socket.id, {
+      x: p?.x ?? 0, y: p?.y ?? 2.5, z: p?.z ?? 0,
+      yaw: p?.yaw ?? 0, name: p?.name ?? 'Player'
+    });
+    socket.broadcast.emit('player-join', { id: socket.id, ...players.get(socket.id) });
+  });
 
-  // Move
-  socket.on('move', (data) => {
-    if(players[socket.id]){
-      players[socket.id] = {...players[socket.id], ...data}
-      socket.broadcast.emit('player-update', {id: socket.id, ...data})
+  socket.on('move', (p) => {
+    const me = players.get(socket.id);
+    if (!me) return;
+    if (typeof p.x === 'number') me.x = p.x;
+    if (typeof p.y === 'number') me.y = p.y;
+    if (typeof p.z === 'number') me.z = p.z;
+    if (typeof p.yaw === 'number') me.yaw = p.yaw;
+    if (typeof p.name === 'string') me.name = p.name.slice(0, 24);
+    socket.broadcast.emit('player-update', { id: socket.id, ...me });
+  });
+
+  socket.on('name-change', ({ name }) => {
+    const me = players.get(socket.id);
+    if (!me) return;
+    me.name = String(name || 'Player').slice(0, 24);
+    socket.broadcast.emit('player-update', { id: socket.id, name: me.name });
+  });
+
+  // Build/remove from clients (server validates + rebroadcasts)
+  socket.on('build', ({ x, y, z, color }) => {
+    if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z)) return;
+    if (x < MIN_COORD || x > MAX_COORD || y < MIN_COORD || y > MAX_COORD || z < MIN_COORD || z > MAX_COORD) return;
+    const safeColor = (typeof color === 'number' && color >= 0 && color <= 0xffffff) ? color : 0xffffff;
+    if (addBlock(x, y, z, safeColor, false)) {
+      io.emit('build', { x, y, z, color: safeColor });
     }
-  })
+  });
 
-  // Build
-  socket.on('build', (data) => {
-    blocks.push(data)
-    io.emit('build', data)
-  })
-
-  // Remove
-  socket.on('remove', (data) => {
-    const index = blocks.findIndex(b => b.x === data.x && b.y === (data.y - .25) && b.z === data.z)
-    if(index !== -1) blocks.splice(index, 1)
-    io.emit('remove', data)
-  })
-
-  // Name change
-  socket.on('name-change', ({name}) => {
-    if(players[socket.id]){
-      players[socket.id].name = name
-      io.emit('player-update', {id: socket.id, name})
+  socket.on('remove', ({ x, y, z }) => {
+    if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z)) return;
+    if (removeBlock(x, y, z)) {
+      io.emit('remove', { x, y, z });
     }
-  })
+  });
+
+  // ----- SAVE (client asks, server sends full world) -----
+  socket.on('request-save', () => {
+    // Send all blocks (client decides to skip ground when saving if desired)
+    socket.emit('world-data', { blocks: Array.from(blocks.values()) });
+  });
+
+  // ----- LOAD (client uploads a file; server validates & applies) -----
+  socket.on('load-world', (payload) => {
+    try {
+      if (!payload || !Array.isArray(payload.blocks)) return;
+      const incoming = payload.blocks;
+
+      if (incoming.length > MAX_BLOCKS_UPLOAD) return; // hard limit
+
+      // Rebuild world:
+      // 1) keep ground
+      // 2) clear everything else
+      for (const [k, b] of blocks) {
+        if (!b.indestructible) blocks.delete(k);
+      }
+
+      let added = 0;
+      for (const raw of incoming) {
+        if (!raw || !Number.isFinite(raw.x) || !Number.isFinite(raw.y) || !Number.isFinite(raw.z)) continue;
+        // File stores positions as grid-centered (0.5 offset) or raw grid? We'll accept integers or .5 positions,
+        // but we snap to integers here (client saves integers + 0.5 in position -> we saved grid coords already).
+        const x = Math.round(raw.x);
+        const y = Math.round(raw.y);
+        const z = Math.round(raw.z);
+        if (x < MIN_COORD || x > MAX_COORD || y < MIN_COORD || y > MAX_COORD || z < MIN_COORD || z > MAX_COORD) continue;
+
+        const color = (typeof raw.color === 'number' && raw.color >= 0 && raw.color <= 0xffffff) ? raw.color : 0xffffff;
+
+        // Don’t overwrite ground
+        const k = keyOf(x, y, z);
+        if (blocks.has(k) && blocks.get(k).indestructible) continue;
+
+        if (addBlock(x, y, z, color, false)) added++;
+      }
+
+      // Broadcast the entire new world in one go
+      io.emit('world-set', { blocks: Array.from(blocks.values()) });
+      console.log(`World loaded: ${added} blocks (excluding ground).`);
+
+    } catch (e) {
+      console.error('load-world error:', e);
+    }
+  });
 
   socket.on('disconnect', () => {
-    delete players[socket.id]
-    io.emit('player-leave', {id: socket.id})
-  })
-})
+    if (players.has(socket.id)) {
+      socket.broadcast.emit('player-leave', { id: socket.id });
+      players.delete(socket.id);
+    }
+  });
+});
 
-const PORT = process.env.PORT || 80
-server.listen(PORT, '0.0.0.0', () => console.log('Server running on port', PORT))
-
-
-
-
+const PORT = process.env.PORT || 80;
+server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
