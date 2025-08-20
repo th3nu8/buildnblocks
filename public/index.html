@@ -469,33 +469,35 @@ function step(dt) {
         const overlapY = Math.min(playerMax.y - blockMin.y, blockMax.y - playerMin.y);
         const overlapZ = Math.min(playerMax.z - blockMin.z, blockMax.z - playerMin.z);
 
-        if (overlapX > 0 && overlapY > 0 && overlapZ > 0) {
-            // find the smallest overlap
-            if (overlapX < minOverlap) {
-                minOverlap = overlapX;
-                resolveAxis = 'x';
-                resolveValue = (player.pos.x < block.position.x) ? -overlapX : overlapX;
-            }
-            if (overlapY < minOverlap) {
-                minOverlap = overlapY;
-                resolveAxis = 'y';
-                resolveValue = (player.pos.y < block.position.y) ? -overlapY : overlapY;
-            }
-            if (overlapZ < minOverlap) {
-                minOverlap = overlapZ;
-                resolveAxis = 'z';
-                resolveValue = (player.pos.z < block.position.z) ? -overlapZ : overlapZ;
+        // --- COLLISION RESOLUTION ---
+        if (overlapX > 0 && overlapX < overlapY && overlapX < overlapZ) {
+            // Resolve X
+            if (player.pos.x < block.position.x) {
+                player.pos.x -= overlapX;
+            } else {
+                player.pos.x += overlapX;
+            }    
+            player.vel.x = 0;
+        } 
+        else if (overlapY > 0 && overlapY < overlapX && overlapY < overlapZ) {
+            // Resolve Y
+            if (player.pos.y < block.position.y) {
+                player.pos.y -= overlapY;
+                player.vel.y = 0; // stop when hitting ceiling
+            } else {
+                player.pos.y += overlapY;
+                player.vel.y = 0; // stop when landing
             }
         }
-    });
-    // ✅ apply only the single smallest push
-    if (resolveAxis) {
-        player.pos[resolveAxis] += resolveValue;
-        if (resolveAxis === 'y' && resolveValue > 0) {
-        player.vel.y = 0; // grounded
+        else if (overlapZ > 0) {
+            // Resolve Z
+            if (player.pos.z < block.position.z) {
+                player.pos.z -= overlapZ;
+            } else {
+                player.pos.z += overlapZ;
+            }
+            player.vel.z = 0;
         }
-    }
-
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
 
@@ -609,6 +611,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
