@@ -153,11 +153,17 @@ document.getElementById("fileInput").addEventListener("change", event => {
   reader.onload = e => {
     const data = JSON.parse(e.target.result);
 
-    // remove old blocks first (but not the ground or player)
-    blocks.forEach(b => scene.remove(b));
+    // remove old blocks but keep spawn platform
+    blocks.forEach(b => {
+      if (b.userData.indestructible) return; // skip platform
+      scene.remove(b);
+    });
+    // keep only indestructible blocks in array
+    const remaining = blocks.filter(b => b.userData.indestructible);
     blocks.length = 0;
+    blocks.push(...remaining);
 
-    // rebuild blocks
+    // rebuild blocks from save
     data.forEach(item => {
       const blockGeo = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
       const blockMat = new THREE.MeshStandardMaterial({ color: item.color });
@@ -533,5 +539,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
