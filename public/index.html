@@ -358,21 +358,21 @@ function step(dt) {
             } else if (minOverlap === overlapX) {
                 // X axis
                 if (local.pos.x < b.position.x) {
-                    overlapX -= 1 
+                    overlapX -= 0.1 
                     local.pos.x -= overlapX;
                 }
                 else {
-                    overlapX -= 1 
+                    overlapX -= 0.1 
                     local.pos.x += overlapX;
                 }
             } else {
                 // Z axis
                 if (local.pos.z < b.position.z) {
-                    overlapZ -= 1 
+                    overlapZ -= 0.1 
                     local.pos.z -= overlapZ;
                 }
                 else {
-                    overlapZ -= 1
+                    overlapZ -= 0.1
                     local.pos.z += overlapZ;
                 }
             }
@@ -492,6 +492,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
