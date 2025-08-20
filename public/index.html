@@ -32,12 +32,43 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
   background: #4cc3ff;
   transition: width 0.2s ease;
 }
+/* Center-top toolbar */
+#saveLoadContainer {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+}
+
+/* Buttons look consistent */
+#saveLoadContainer button {
+  background: #ffffffcc;
+  border: 1px solid #999;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: sans-serif;
+}
+
+#saveLoadContainer button:hover {
+  background: #fff;
+}
 </style>
 </head>
 <body>
 <div id="toolbar">
   <div class="tool" id="tool-build">Build (1)</div>
   <div class="tool" id="tool-remove">Remove (2)</div>
+</div>
+<!-- Save / Load UI -->
+<div id="saveLoadContainer">
+  <button id="saveBtn">💾 Save</button>
+  <button id="loadBtn">📂 Load</button>
+  <input type="file" id="fileInput" style="display:none" accept=".json">
 </div>
 <div id="status">offline</div>
 <input id="nameInput" placeholder="Your name"/>
@@ -91,28 +122,34 @@ function getBlockColor() {
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
-function makeBlock(x, y, z, indestructible=false, color) {
-  const k = keyOf(x, y, z)
-  if(blockIndex.has(k)) return
+function makeBlock(x, y, z, indestructible = false, color) {
+  const k = keyOf(x, y, z);
+  if (blockIndex.has(k)) return;
 
-  if(color === undefined) color = getBlockColor()
+  if (color === undefined) color = getBlockColor();
 
   const material = new THREE.MeshStandardMaterial({
     map: studTexture,
     color: color
-  })
+  });
 
-  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material)
-  b.position.set(x+0.5, y+0.5, z+0.5)
-  scene.add(b)
-  blocks.push(b)
-  blockIndex.set(k, b)
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
+  b.position.set(x + 0.5, y + 0.5, z + 0.5);
 
-  if(indestructible) indestructibleBlocks.add(b)
-  return b
+  // store grid coords and flags on the mesh
+  b.userData.grid = { x, y, z };
+  b.userData.indestructible = !!indestructible;
+
+  scene.add(b);
+  blocks.push(b);
+  blockIndex.set(k, b);
+
+  if (indestructible) indestructibleBlocks.add(b);
+  return b;
 }
 function removeBlockAt(x,y,z){
-  const k=keyOf(x,y,z), m=blockIndex.get(k); if(!m||indestructibleBlocks.has(m)) return false;
+  const k = keyOf(x,y,z), m = blockIndex.get(k);
+  if (!m || indestructibleBlocks.has(m)) return false;
   scene.remove(m); blocks.splice(blocks.indexOf(m),1); blockIndex.delete(k); return true;
 }
 for(let x=-25;x<25;x++)for(let z=-25;z<25;z++)makeBlock(x,0,z,true);
@@ -191,7 +228,13 @@ window.addEventListener('pointerdown',e=>{
       socket.emit('build', {x, y, z, color})
     }
   }
-  else if(activeTool==='remove'){ const bx=Math.floor(hit.object.position.x-0.5),by=Math.floor(hit.object.position.y-0.5),bz=Math.floor(hit.object.position.z-0.5); if(removeBlockAt(bx,by,bz)) socket.emit('remove',{x:bx,y:by,z:bz}); }
+  // Your remove click path should keep this guard:
+  else if (activeTool === 'remove') {
+    const bx = Math.floor(hit.object.position.x - 0.5);
+    const by = Math.floor(hit.object.position.y - 0.5);
+    const bz = Math.floor(hit.object.position.z - 0.5);
+    if (removeBlockAt(bx, by, bz)) socket.emit('remove', { x: bx, y: by, z: bz });
+  }
 }});
 
 /* ---------- SOCKET.IO ---------- */
@@ -269,11 +312,92 @@ socket.on('player-update',({id,x,y,z,yaw,name})=>{
   updatePlayerList();
 });
 
+// Server replaced the world: clear (except we’ll reconstruct ground from the packet)
+socket.on('world-set', ({ blocks: worldBlocks }) => {
+  // remove all existing meshes
+  blocks.forEach(m => scene.remove(m));
+  blocks.length = 0;
+  blockIndex.clear();
+  indestructibleBlocks.clear();
+
+  // rebuild from snapshot
+  for (const b of worldBlocks) {
+    makeBlock(b.x, b.y, b.z, !!b.indestructible, b.color);
+  }
+});
+
 /* ---------- BUILD/REMOVE LISTEN ---------- */
 socket.on('build', ({x,y,z,color}) => {
   makeBlock(x,y,z,false,color)
 })
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
+
+// --- SAVE (authoritative) ---
+// when you click "Save", ask the server for the current world, then download it
+document.getElementById("saveBtn").addEventListener("click", () => {
+  socket.emit('request-save');
+});
+
+// server sends world snapshot
+socket.on('world-data', ({ blocks: worldBlocks }) => {
+  // Optional: skip ground in the save file, so users only save their custom builds
+  const data = worldBlocks
+    .filter(b => !b.indestructible) // don’t save the platform
+    .map(b => ({
+      // store integer grid coords; the server expects these on load
+      x: b.x,
+      y: b.y,
+      z: b.z,
+      color: b.color
+    }));
+
+  const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "buildnblocks_save.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// --- LOAD (authoritative) ---
+// show file picker
+document.getElementById("loadBtn").addEventListener("click", () => {
+  document.getElementById("fileInput").click();
+});
+
+document.getElementById("fileInput").addEventListener("change", event => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    let data;
+    try {
+      data = JSON.parse(e.target.result);
+    } catch {
+      alert('Invalid file format.');
+      return;
+    }
+    if (!Array.isArray(data)) {
+      alert('Invalid world data.');
+      return;
+    }
+
+    // We send grid coords + color to server; server will rebuild and broadcast
+    const payload = {
+      blocks: data.map(b => ({
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        z: Math.round(b.z),
+        color: (typeof b.color === 'number' && b.color >= 0 && b.color <= 0xffffff) ? b.color : 0xffffff
+      }))
+    };
+    socket.emit('load-world', payload);
+  };
+  reader.readAsText(file);
+});
 
 /* ---------- PHYSICS & ANIMATION ---------- */
 function step(dt) {
@@ -480,3 +604,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
