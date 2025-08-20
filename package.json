@@ -1,5 +1,5 @@
 {
-  "name": "3d-block-game",
+  "name": "buildnblocks",
   "version": "1.0.0",
   "description": "BuildNBlocks",
   "main": "server.js",
@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC"
 }
+
 
 
 
