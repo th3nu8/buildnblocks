@@ -467,14 +467,24 @@ function step(dt) {
         let countX = 0, countY = 0, countZ = 0;
 
         for (const block of blocks) {
-            const blockMin = block.position.clone().add(block.geometry.boundingBox.min);
-            const blockMax = block.position.clone().add(block.geometry.boundingBox.max);
+        // Assume your blocks are 1x1x1 cubes, centered on block.position
+            const blockMin = new THREE.Vector3(
+                block.position.x - 0.5,
+                block.position.y - 0.5,
+                block.position.z - 0.5
+            );
+            const blockMax = new THREE.Vector3(
+                block.position.x + 0.5,
+                block.position.y + 0.5,
+                block.position.z + 0.5
+            );
 
             const overlapX = Math.min(playerMax.x, blockMax.x) - Math.max(playerMin.x, blockMin.x);
             const overlapY = Math.min(playerMax.y, blockMax.y) - Math.max(playerMin.y, blockMin.y);
             const overlapZ = Math.min(playerMax.z, blockMax.z) - Math.max(playerMin.z, blockMin.z);
 
             if (overlapX > 0 && overlapY > 0 && overlapZ > 0) {
+            // Pick the smallest axis to resolve
                 if (overlapX < overlapY && overlapX < overlapZ) {
                     totalX += (player.pos.x < block.position.x ? -overlapX : overlapX);
                     countX++;
@@ -488,6 +498,26 @@ function step(dt) {
             }
         }
     });
+
+// Apply average correction
+if (countX > 0) {
+  player.pos.x += totalX / countX;
+  player.vel.x = 0;
+}
+if (countY > 0) {
+  player.pos.y += totalY / countY;
+  if (totalY > 0) {
+    player.onGround = true;
+    player.vel.y = 0;
+  } else if (player.vel.y > 0) {
+    player.vel.y = 0;
+  }
+}
+if (countZ > 0) {
+  player.pos.z += totalZ / countZ;
+  player.vel.z = 0;
+}
+
 
 // Apply average correction
 if (countX > 0) {
@@ -621,6 +651,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
