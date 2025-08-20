@@ -438,7 +438,7 @@ function step(dt) {
     }
 
     // --- COLLISIONS (replaced code) ---
-    const radius = 0.4;
+    const radius = 0.5;
     const playerHeight = 2.5;
     const halfHeight = playerHeight / 2;
 
@@ -455,88 +455,41 @@ function step(dt) {
 
     local.onGround = false;
 
-    let minOverlap = Infinity;
-    let resolveAxis = null;
-    let resolveValue = 0;
+    blocks.forEach(b => {
+        const min = b.position.clone().subScalar(0.5);
+        const max = b.position.clone().addScalar(0.5);
 
-    blocks.forEach(block => {
-        if (!block.geometry || !block.geometry.boundingBox) return;
+        if (playerMax.x > min.x && playerMin.x < max.x &&
+            playerMax.y > min.y && playerMin.y < max.y &&
+            playerMax.z > min.z && playerMin.z < max.z) {
 
-        // Collect overlaps
-        let totalX = 0, totalY = 0, totalZ = 0;
-        let countX = 0, countY = 0, countZ = 0;
+            const overlapX = Math.min(playerMax.x - min.x, max.x - playerMin.x);
+            const overlapY = Math.min(playerMax.y - min.y, max.y - playerMin.y);
+            const overlapZ = Math.min(playerMax.z - min.z, max.z - playerMin.z);
 
-        for (const block of blocks) {
-        // Assume your blocks are 1x1x1 cubes, centered on block.position
-            const blockMin = new THREE.Vector3(
-                block.position.x - 0.5,
-                block.position.y - 0.5,
-                block.position.z - 0.5
-            );
-            const blockMax = new THREE.Vector3(
-                block.position.x + 0.5,
-                block.position.y + 0.5,
-                block.position.z + 0.5
-            );
+            const minOverlap = Math.min(overlapX, overlapY, overlapZ);
 
-            const overlapX = Math.min(playerMax.x, blockMax.x) - Math.max(playerMin.x, blockMin.x);
-            const overlapY = Math.min(playerMax.y, blockMax.y) - Math.max(playerMin.y, blockMin.y);
-            const overlapZ = Math.min(playerMax.z, blockMax.z) - Math.max(playerMin.z, blockMin.z);
-
-            if (overlapX > 0 && overlapY > 0 && overlapZ > 0) {
-            // Pick the smallest axis to resolve
-                if (overlapX < overlapY && overlapX < overlapZ) {
-                    totalX += (player.pos.x < block.position.x ? -overlapX : overlapX);
-                    countX++;
-                } else if (overlapY < overlapX && overlapY < overlapZ) {
-                    totalY += (player.pos.y < block.position.y ? -overlapY : overlapY);
-                    countY++;
-                } else {
-                    totalZ += (player.pos.z < block.position.z ? -overlapZ : overlapZ);
-                    countZ++;
+            if (minOverlap === overlapY) {
+                // Vertical
+                if (local.vel.y <= 0 && (playerMin.y < max.y)) {
+                    local.pos.y = max.y + halfHeight;
+                    local.vel.y = 0;
+                    local.onGround = true;
+                } else if (local.vel.y > 0) {
+                    local.pos.y -= overlapY;
+                    local.vel.y = 0;
                 }
+            } else if (minOverlap === overlapX) {
+                // X axis
+                if (local.pos.x < b.position.x) local.pos.x -= (overlapX);
+                else local.pos.x += (overlapX);
+            } else {
+                // Z axis
+                if (local.pos.z < b.position.z) local.pos.z -= (overlapZ);
+                else local.pos.z += (overlapZ);
             }
         }
     });
-
-// Apply average correction
-if (countX > 0) {
-  player.pos.x += totalX / countX;
-  player.vel.x = 0;
-}
-if (countY > 0) {
-  player.pos.y += totalY / countY;
-  if (totalY > 0) {
-    player.onGround = true;
-    player.vel.y = 0;
-  } else if (player.vel.y > 0) {
-    player.vel.y = 0;
-  }
-}
-if (countZ > 0) {
-  player.pos.z += totalZ / countZ;
-  player.vel.z = 0;
-}
-
-
-// Apply average correction
-if (countX > 0) {
-  player.pos.x += totalX / countX;
-  player.vel.x = 0;
-}
-if (countY > 0) {
-  player.pos.y += totalY / countY;
-  if (totalY > 0) {
-    player.onGround = true; // landed on top
-    player.vel.y = 0;
-  } else if (player.vel.y > 0) {
-    player.vel.y = 0; // hitting ceiling
-  }
-}
-if (countZ > 0) {
-  player.pos.z += totalZ / countZ;
-  player.vel.z = 0;
-}
 
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
@@ -651,12 +604,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
