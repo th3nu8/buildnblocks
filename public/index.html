@@ -31,6 +31,30 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
   background: #4cc3ff;
   transition: width 0.2s ease;
 }
+#saveLoadContainer {
+    position: fixed;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 5;
+}
+
+#saveLoadContainer button {
+    padding: 6px 12px;
+    border: 1px solid #fff;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    cursor: pointer;
+    font-family: sans-serif;
+}
+
+#saveLoadContainer button:hover {
+    background: rgba(76,195,255,0.8);
+    color: #222;
+}
 </style>
 </head>
 <body>
@@ -38,6 +62,10 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
   <button id="saveBtn">Save</button>
   <button id="loadBtn">Load</button>
   <input type="file" id="fileInput" style="display:none" />
+</div>
+<div id="saveLoadContainer">
+  <button id="save-world">💾 Save</button>
+  <button id="load-world">📂 Load</button>
 </div>
 <div id="toolbar">
   <div class="tool" id="tool-build">Build (1)</div>
@@ -121,60 +149,24 @@ function removeBlockAt(x,y,z){
 }
 for(let x=-25;x<25;x++)for(let z=-25;z<25;z++)makeBlock(x,0,z,true);
 
-// --- SAVE FUNCTION ---
-document.getElementById("saveBtn").addEventListener("click", () => {
-  const blockData = blocks.map(b => ({
-    x: b.position.x,
-    y: b.position.y,
-    z: b.position.z,
-    color: b.material.color.getHex()
-  }));
+const saveBtn = document.getElementById('save-world')
+const loadBtn = document.getElementById('load-world')
 
-  const blob = new Blob([JSON.stringify(blockData)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+saveBtn.onclick = () => socket.emit('save-world')
+loadBtn.onclick = () => socket.emit('load-world')
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "buildnblocks_save.json";
-  a.click();
-  URL.revokeObjectURL(url);
-});
+socket.on('world-saved', () => alert('World saved!'))
 
-// --- LOAD FUNCTION ---
-document.getElementById("loadBtn").addEventListener("click", () => {
-  document.getElementById("fileInput").click();
-});
+socket.on('world-loaded', loadedBlocks => {
+  // Remove current blocks (except indestructible)
+  blocks.forEach(b => { if(!indestructibleBlocks.has(b)) scene.remove(b) })
+  blocks.length = 0
+  blockIndex.clear()
 
-document.getElementById("fileInput").addEventListener("change", event => {
-  const file = event.target.files[0];
-  if (!file) return;
+  // Spawn blocks from loaded world
+  loadedBlocks.forEach(b => makeBlock(b.x, b.y, b.z, false, b.color))
+})
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = JSON.parse(e.target.result);
-
-    // remove old blocks but keep spawn platform
-    blocks.forEach(b => {
-      if (b.userData.indestructible) return; // skip platform
-      scene.remove(b);
-    });
-    // keep only indestructible blocks in array
-    const remaining = blocks.filter(b => b.userData.indestructible);
-    blocks.length = 0;
-    blocks.push(...remaining);
-
-    // rebuild blocks from save
-    data.forEach(item => {
-      const blockGeo = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
-      const blockMat = new THREE.MeshStandardMaterial({ color: item.color });
-      const block = new THREE.Mesh(blockGeo, blockMat);
-      block.position.set(item.x, item.y, item.z);
-      scene.add(block);
-      blocks.push(block);
-    });
-  };
-  reader.readAsText(file);
-});
 
 // ---------- BUILD PREVIEW BLOCK ----------
 const previewMaterial = new THREE.MeshStandardMaterial({color: 0x00ff00, transparent: true, opacity: 0.5});
@@ -539,6 +531,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
