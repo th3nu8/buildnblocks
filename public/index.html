@@ -314,7 +314,7 @@ function step(dt) {
     }
 
     // --- COLLISIONS (replaced code) ---
-    const radius = 0.4;
+    const radius = 0.5;
     const playerHeight = 2.5;
     const halfHeight = playerHeight / 2;
 
@@ -357,20 +357,12 @@ function step(dt) {
                 }
             } else if (minOverlap === overlapX) {
                 // X axis
-                if (playerMax.x - min.x < max.x - playerMin.x) {
-                    loacl.pos.x -= (max.x - playerMin.x);
-                } else {
-                    local.pos.x += (max.x - playerMin.x);
-                }
-                local.vel.x = 0;
-            
+                if (local.pos.x < b.position.x) local.pos.x -= (overlapX - 0.1);
+                else local.pos.x += (overlapX);
             } else {
-                if (playerMax.z - min.z < max.z - playerMin.z) {
-                    local.pos.z -= (playerMax.z - min.z);
-                } else {
-                    local.pos.z += (max.z - playerMin.z);
-                }
-                local.vel.z = 0;
+                // Z axis
+                if (local.pos.z < b.position.z) local.pos.z -= (overlapZ - 0.1);
+                else local.pos.z += (overlapZ);
             }
         }
     });
@@ -488,13 +480,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
