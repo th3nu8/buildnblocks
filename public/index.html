@@ -488,14 +488,13 @@ function step(dt) {
             }
         }
     });
-
-// ✅ apply only the single smallest push
-if (resolveAxis) {
-  player.pos[resolveAxis] += resolveValue;
-  if (resolveAxis === 'y' && resolveValue > 0) {
-    player.vel.y = 0; // grounded
-  }
-}
+    // ✅ apply only the single smallest push
+    if (resolveAxis) {
+        player.pos[resolveAxis] += resolveValue;
+        if (resolveAxis === 'y' && resolveValue > 0) {
+        player.vel.y = 0; // grounded
+        }
+    }
 
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
@@ -610,6 +609,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
