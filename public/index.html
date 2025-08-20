@@ -357,11 +357,11 @@ function step(dt) {
                 }
             } else if (minOverlap === overlapX) {
                 // X axis
-                if (local.pos.x < b.position.x) local.pos.x -= (overlapX - 0.1);
+                if (local.pos.x < b.position.x) local.pos.x -= (overlapX);
                 else local.pos.x += (overlapX);
             } else {
                 // Z axis
-                if (local.pos.z < b.position.z) local.pos.z -= (overlapZ - 0.1);
+                if (local.pos.z < b.position.z) local.pos.z -= (overlapZ);
                 else local.pos.z += (overlapZ);
             }
         }
