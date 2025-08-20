@@ -358,22 +358,22 @@ function step(dt) {
             } else if (minOverlap === overlapX) {
                 // X axis
                 if (local.pos.x < b.position.x) {
-                    local.pos.x -= overlapX
-                    local.pos.x += 0.1;
+                    overlapX -= 1 
+                    local.pos.x -= overlapX;
                 }
                 else {
-                    local.pos.x += overlapX
-                    local.pos.x -= 0.1;
+                    overlapX -= 1 
+                    local.pos.x += overlapX;
                 }
             } else {
                 // Z axis
                 if (local.pos.z < b.position.z) {
-                    local.pos.z -= overlapZ
-                    local.pos.z += 0.1;
+                    overlapZ -= 1 
+                    local.pos.z -= overlapZ;
                 }
                 else {
-                    local.pos.z += overlapZ
-                    local.pos.z -= 0.1;
+                    overlapZ -= 1
+                    local.pos.z += overlapZ;
                 }
             }
         }
@@ -492,6 +492,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
