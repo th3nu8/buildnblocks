@@ -357,13 +357,19 @@ function step(dt) {
                 }
             } else if (minOverlap === overlapX) {
                 // X axis
-                let correction = (local.pos.x <b.position.x ? -overlapX : overlapX);
-                local.pos.x += correction;
+                if (playerMax.x - min.x < max.x - playerMin.x) {
+                    loacl.pos.x -= (max.x - playerMin.x);
+                } else {
+                    local.pos.x += (max.x - playerMin.x);
+                }
                 local.vel.x = 0;
+            
             } else {
-                // Z axis
-                let correction = (local.pos.z < b.position.z ? -overlapZ : overlapZ);
-                local.pos.z += correction;
+                if (playerMax.z - min.z < max.z - playerMin.z) {
+                    local.pos.z -= (playerMax.z - min.z);
+                } else {
+                    local.pos.z += (max.z - playerMin.z);
+                }
                 local.vel.z = 0;
             }
         }
@@ -482,6 +488,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
