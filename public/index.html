@@ -346,8 +346,6 @@ function step(dt) {
             const minOverlap = Math.min(overlapX, overlapY, overlapZ);
 
             if (minOverlap === overlapY) {
-                overlapX -= 0.1
-                overlapZ -= 0.1
                 // Vertical
                 if (local.vel.y <= 0 && (playerMin.y < max.y)) {
                     local.pos.y = max.y + halfHeight;
@@ -359,20 +357,14 @@ function step(dt) {
                 }
             } else if (minOverlap === overlapX) {
                 // X axis
-                if (local.pos.x < b.position.x) {
-                    overlapX -= 0.01;
-                }
-                else {
-                    overlapX -= 0.01;
-                }
+                let correction = (local.pos.x <b.position.x ? -overlapX : overlapX);
+                local.pos.x += correction;
+                local.vel.x = 0;
             } else {
                 // Z axis
-                if (local.pos.z < b.position.z) {
-                    local.pos.z -= overlapZ;
-                }
-                else {
-                    overlapZ -= 0.01;
-                }
+                let correction = (local.pos.z < b.position.z ? -overlapZ : overlapZ);
+                local.pos.z += correction;
+                local.vel.z = 0;
             }
         }
     });
@@ -490,6 +482,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
