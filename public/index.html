@@ -437,7 +437,7 @@ function step(dt) {
         local.health = 100;
     }
 
-    // --- COLLISIONS (replaced code) ---
+    // --- COLLISIONS (updated code) ---
     const radius = 0.5;
     const playerHeight = 2.5;
     const halfHeight = playerHeight / 2;
@@ -455,6 +455,9 @@ function step(dt) {
 
     local.onGround = false;
 
+    let totalAdjust = new THREE.Vector3();
+    let collisionCount = 0;
+
     blocks.forEach(b => {
         const min = b.position.clone().subScalar(0.5);
         const max = b.position.clone().addScalar(0.5);
@@ -469,27 +472,34 @@ function step(dt) {
 
             const minOverlap = Math.min(overlapX, overlapY, overlapZ);
 
+            let adjust = new THREE.Vector3();
+
             if (minOverlap === overlapY) {
-                // Vertical
                 if (local.vel.y <= 0 && (playerMin.y < max.y)) {
-                    local.pos.y = max.y + halfHeight;
+                    adjust.y = (max.y + halfHeight) - local.pos.y;
                     local.vel.y = 0;
                     local.onGround = true;
                 } else if (local.vel.y > 0) {
-                    local.pos.y -= overlapY;
+                    adjust.y = -overlapY;
                     local.vel.y = 0;
                 }
             } else if (minOverlap === overlapX) {
-                // X axis
-                if (local.pos.x < b.position.x) local.pos.x -= (overlapX);
-                else local.pos.x += (overlapX);
+                if (local.pos.x < b.position.x) adjust.x = -overlapX;
+                else adjust.x = overlapX;
             } else {
-                // Z axis
-                if (local.pos.z < b.position.z) local.pos.z -= (overlapZ);
-                else local.pos.z += (overlapZ);
+                if (local.pos.z < b.position.z) adjust.z = -overlapZ;
+                else adjust.z = overlapZ;
             }
+
+            totalAdjust.add(adjust);
+            collisionCount++;
         }
     });
+
+if (collisionCount > 0) {
+    totalAdjust.divideScalar(collisionCount);
+    local.pos.add(totalAdjust);
+}
 
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
@@ -604,3 +614,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
