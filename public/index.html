@@ -496,10 +496,10 @@ function step(dt) {
         }
     });
 
-if (collisionCount > 0) {
-    totalAdjust.divideScalar(collisionCount);
-    local.pos.add(totalAdjust);
-}
+    if (collisionCount > 0) {
+        totalAdjust.divideScalar(collisionCount);
+        local.pos.add(totalAdjust);
+    }
 
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
@@ -614,4 +614,5 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
