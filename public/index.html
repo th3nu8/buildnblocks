@@ -152,7 +152,6 @@ function removeBlockAt(x,y,z){
   if (!m || indestructibleBlocks.has(m)) return false;
   scene.remove(m); blocks.splice(blocks.indexOf(m),1); blockIndex.delete(k); return true;
 }
-for(let x=-25;x<25;x++)for(let z=-25;z<25;z++)makeBlock(x,0,z,true);
 
 // ---------- BUILD PREVIEW BLOCK ----------
 const previewMaterial = new THREE.MeshStandardMaterial({color: 0x00ff00, transparent: true, opacity: 0.5});
@@ -294,8 +293,15 @@ socket.on('connect', () => {
 });
 
 socket.on('init', payload => {
-    payload.blocks.forEach(b => makeBlock(b.x, b.y, b.z));
 
+    blocks.forEach(m => scene.remove(m));
+    blocks.length = 0; blockIndex.clear(); indestructibleBlocks.clear();
+  
+    for (const b of payload.blocks) {
+        makeBlock(b.x, b.y, b.z, !!b.indestructible, b.color);
+    }
+
+    // Spawn existing players
     for (const [id, p] of Object.entries(payload.players)) {
         if (id !== local.id) spawnOther(id, p);
     }
@@ -632,6 +638,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
