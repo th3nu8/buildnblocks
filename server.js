@@ -52,6 +52,8 @@ function buildGround() {
 }
 buildGround();
 
+
+
 // ----- VALIDATION LIMITS -----
 const MAX_BLOCKS_UPLOAD = 10000;
 const MIN_COORD = -512;
@@ -108,6 +110,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  // If world is empty, generate initial ground
+  if (!world.blocks || world.blocks.length === 0) {
+    world.blocks = [];
+    for (let x = -25; x < 25; x++) {
+      for (let z = -25; z < 25; z++) {
+        world.blocks.push({
+          x, y: 0, z,
+          indestructible: true,
+          color: 0xffffff // default ground color
+        });
+      }
+    }
+  }
+
+  
   // ----- SAVE (client asks, server sends full world) -----
   socket.on('request-save', () => {
     // Send all blocks (client decides to skip ground when saving if desired)
@@ -167,3 +184,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
