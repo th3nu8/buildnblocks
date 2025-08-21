@@ -437,7 +437,7 @@ function step(dt) {
         local.health = 100;
     }
 
-    // --- COLLISIONS (updated code) ---
+    // --- COLLISIONS (fixed) ---
     const radius = 0.5;
     const playerHeight = 2.5;
     const halfHeight = playerHeight / 2;
@@ -455,8 +455,10 @@ function step(dt) {
 
     local.onGround = false;
 
-    let totalAdjust = new THREE.Vector3();
-    let collisionCount = 0;
+    let horizAdjust = new THREE.Vector3();
+    let horizCount = 0;
+    let vertAdjustY = 0;
+    let vertHit = false;
 
     blocks.forEach(b => {
         const min = b.position.clone().subScalar(0.5);
@@ -472,34 +474,37 @@ function step(dt) {
 
             const minOverlap = Math.min(overlapX, overlapY, overlapZ);
 
-            let adjust = new THREE.Vector3();
-
             if (minOverlap === overlapY) {
+                // Vertical collision is resolved immediately (not averaged)
                 if (local.vel.y <= 0 && (playerMin.y < max.y)) {
-                    adjust.y = (max.y + halfHeight) - local.pos.y;
+                    // standing on floor
+                    local.pos.y = max.y + halfHeight;
                     local.vel.y = 0;
                     local.onGround = true;
                 } else if (local.vel.y > 0) {
-                    adjust.y = -overlapY;
+                    // hitting head
+                    local.pos.y -= overlapY;
                     local.vel.y = 0;
                 }
+                vertHit = true;
             } else if (minOverlap === overlapX) {
-                if (local.pos.x < b.position.x) adjust.x = -overlapX;
-                else adjust.x = overlapX;
+                let adjustX = (local.pos.x < b.position.x) ? -overlapX : overlapX;
+                horizAdjust.x += adjustX;
+                horizCount++;
             } else {
-                if (local.pos.z < b.position.z) adjust.z = -overlapZ;
-                else adjust.z = overlapZ;
+                let adjustZ = (local.pos.z < b.position.z) ? -overlapZ : overlapZ;
+                horizAdjust.z += adjustZ;
+                horizCount++;
             }
-
-            totalAdjust.add(adjust);
-            collisionCount++;
-        }
+        }    
     });
 
-    if (collisionCount > 0) {
-        totalAdjust.divideScalar(collisionCount);
-        local.pos.add(totalAdjust);
+    // Apply averaged horizontal adjustment
+    if (horizCount > 0) {
+        horizAdjust.divideScalar(horizCount);
+        local.pos.add(horizAdjust);
     }
+
 
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
@@ -614,5 +619,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
