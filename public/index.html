@@ -293,10 +293,6 @@ socket.on('connect', () => {
 });
 
 socket.on('init', payload => {
-
-    blocks.forEach(m => scene.remove(m));
-    blocks.length = 0; blockIndex.clear(); indestructibleBlocks.clear();
-  
     for (const b of payload.blocks) {
         makeBlock(b.x, b.y, b.z, !!b.indestructible, b.color);
     }
@@ -306,19 +302,6 @@ socket.on('init', payload => {
         if (id !== local.id) spawnOther(id, p);
     }
 });
-
-socket.on("init", data => {
-    // clear old blocks
-    blocks.forEach(b => scene.remove(b));
-    blocks.length = 0;
-    blockIndex.clear();
-
-    // rebuild from server state
-    data.blocks.forEach(b => {
-        makeBlock(b.x, b.y, b.z, b.indestructible, b.color);
-    });
-});
-
 
 socket.on('player-join',({id,x,y,z,name})=>{ if(id!==local.id) spawnOther(id,{x,y,z,name}); });
 socket.on('player-leave',({id})=>removeOther(id));
@@ -651,6 +634,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
