@@ -307,6 +307,19 @@ socket.on('init', payload => {
     }
 });
 
+socket.on("init", data => {
+    // clear old blocks
+    blocks.forEach(b => scene.remove(b));
+    blocks.length = 0;
+    blockIndex.clear();
+
+    // rebuild from server state
+    data.blocks.forEach(b => {
+        makeBlock(b.x, b.y, b.z, b.indestructible, b.color);
+    });
+});
+
+
 socket.on('player-join',({id,x,y,z,name})=>{ if(id!==local.id) spawnOther(id,{x,y,z,name}); });
 socket.on('player-leave',({id})=>removeOther(id));
 socket.on('player-update',({id,x,y,z,yaw,name})=>{
@@ -638,6 +651,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
