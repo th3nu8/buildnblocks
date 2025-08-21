@@ -457,8 +457,12 @@ function step(dt) {
 
     let horizAdjust = new THREE.Vector3();
     let horizCount = 0;
-    let vertAdjustY = 0;
-    let vertHit = false;
+
+    // Track strongest floor and ceiling pushes
+    let maxFloorY = -Infinity;
+    let minCeilY = Infinity;
+    let hitFloor = false;
+    let hitCeil = false;
 
     blocks.forEach(b => {
         const min = b.position.clone().subScalar(0.5);
@@ -475,18 +479,15 @@ function step(dt) {
             const minOverlap = Math.min(overlapX, overlapY, overlapZ);
 
             if (minOverlap === overlapY) {
-                // Vertical collision is resolved immediately (not averaged)
                 if (local.vel.y <= 0 && (playerMin.y < max.y)) {
-                    // standing on floor
-                    local.pos.y = max.y + halfHeight;
-                    local.vel.y = 0;
-                    local.onGround = true;
+                    // touching floor: track the HIGHEST floor
+                    maxFloorY = Math.max(maxFloorY, max.y + halfHeight);
+                    hitFloor = true;
                 } else if (local.vel.y > 0) {
-                    // hitting head
-                    local.pos.y -= overlapY;
-                    local.vel.y = 0;
+                    // hitting ceiling: track the LOWEST ceiling
+                    minCeilY = Math.min(minCeilY, min.y - halfHeight);
+                    hitCeil = true;
                 }
-                vertHit = true;
             } else if (minOverlap === overlapX) {
                 let adjustX = (local.pos.x < b.position.x) ? -overlapX : overlapX;
                 horizAdjust.x += adjustX;
@@ -496,15 +497,27 @@ function step(dt) {
                 horizAdjust.z += adjustZ;
                 horizCount++;
             }
-        }    
+        }
     });
+
+    // Apply strongest floor
+    if (hitFloor) {
+        local.pos.y = maxFloorY;
+        local.vel.y = 0;
+        local.onGround = true;
+    }
+
+    // Apply strongest ceiling
+    if (hitCeil) {
+        local.pos.y = minCeilY;
+        local.vel.y = 0;
+    }
 
     // Apply averaged horizontal adjustment
     if (horizCount > 0) {
         horizAdjust.divideScalar(horizCount);
         local.pos.add(horizAdjust);
     }
-
 
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
@@ -619,6 +632,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
