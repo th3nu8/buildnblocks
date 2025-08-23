@@ -67,6 +67,10 @@ io.on('connection', (socket) => {
     players: Object.fromEntries(players),
   });
 
+  socket.on("chat", msg => {
+    // Broadcast to everyone
+    io.emit("chat", msg);
+
   socket.on('join', (p) => {
     players.set(socket.id, {
       x: p?.x ?? 0, y: p?.y ?? 2.5, z: p?.z ?? 0,
@@ -169,5 +173,6 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
 
 
