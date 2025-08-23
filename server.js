@@ -70,6 +70,7 @@ io.on('connection', (socket) => {
    socket.on("chat", data => {
     // data: { name: "Player", text: "Hello" }
     io.emit("chat", data); // broadcast to everyone
+   });
 
   socket.on('join', (p) => {
     players.set(socket.id, {
@@ -173,6 +174,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
 
 
 
