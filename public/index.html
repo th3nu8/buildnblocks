@@ -32,56 +32,6 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
   background: #4cc3ff;
   transition: width 0.2s ease;
 }
-
-/* Toggle button in top-right, 200px from right edge */
-#toggle-mobile-controls {
-  position: absolute;
-  top: 20px;
-  right: 200px;
-  z-index: 1000;
-  padding: 10px 15px;
-  font-size: 16px;
-  background: rgba(0,0,0,0.6);
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-#mobile-controls {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  display: flex;
-  gap: 20px;
-  user-select: none;
-  z-index: 999;
-}
-
-#joystick {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-}
-
-.control-btn {
-  width: 50px;
-  height: 50px;
-  font-size: 20px;
-  background: rgba(0,0,0,0.5);
-  color: white;
-  border: none;
-  border-radius: 8px;
-}
-
-#jump-btn {
-  width: 80px;
-  height: 80px;
-  font-size: 18px;
-  background: rgba(0,0,0,0.6);
-}
-
 /* Center-top toolbar */
 #saveLoadContainer {
   position: fixed;
@@ -110,27 +60,6 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 </style>
 </head>
 <body>
-
-<button id="toggle-mobile-controls"
-  style="position: absolute; top: 10px; right: 200px; z-index: 1000;">
-  ☰ Controls
-</button>
-
-<!-- Mobile controls -->
-<div id="mobile-controls" style="display: none; position: absolute; bottom: 20px; left: 20px; z-index: 1000; flex-direction: column; gap: 10px;">
-  <div style="display: flex; gap: 10px;">
-    <button class="control-btn" data-key="KeyW">↑</button>
-  </div>
-  <div style="display: flex; gap: 10px;">
-    <button class="control-btn" data-key="KeyA">←</button>
-    <button class="control-btn" data-key="KeyS">↓</button>
-    <button class="control-btn" data-key="KeyD">→</button>
-  </div>
-  <div style="margin-top: 10px;">
-    <button class="control-btn" data-key="Space">⤒ Jump</button>
-  </div>
-</div>
-
 <div id="chat" style="position:absolute; bottom:50px; left:10px; width:300px; background:rgba(0,0,0,0.5); padding:5px; font-family:sans-serif; font-size:14px; color:white;">
   <div id="chat-messages" style="height:150px; overflow-y:auto; margin-bottom:5px;"></div>
   <input id="chat-input" type="text" placeholder="Type a message..." style="width:100%; box-sizing:border-box;">
@@ -159,29 +88,6 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
-
- const toggleBtn = document.getElementById("toggle-mobile-controls");
-  const mobileControls = document.getElementById("mobile-controls");
-
-  toggleBtn.addEventListener("click", () => {
-    mobileControls.style.display =
-      mobileControls.style.display === "none" ? "flex" : "none";
-  });
-
-  // Hook mobile buttons into keys system
-  document.querySelectorAll(".control-btn").forEach(btn => {
-    const key = btn.dataset.key;
-
-    btn.addEventListener("touchstart", e => {
-      e.preventDefault();
-      keys[key] = true;   // same as keyboard keys
-    });
-
-    btn.addEventListener("touchend", e => {
-      e.preventDefault();
-      keys[key] = false;
-    });
-  });
 
 // --- Cookie Helpers ---
 function setCookie(name, value, days = 365) {
@@ -749,15 +655,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
