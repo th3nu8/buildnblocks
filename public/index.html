@@ -60,6 +60,10 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 </style>
 </head>
 <body>
+<div id="chat" style="position:absolute; bottom:10px; left:10px; width:300px; background:rgba(0,0,0,0.5); padding:5px; font-family:sans-serif; font-size:14px; color:white;">
+  <div id="chat-messages" style="height:150px; overflow-y:auto; margin-bottom:5px;"></div>
+  <input id="chat-input" type="text" placeholder="Type a message..." style="width:100%; box-sizing:border-box;">
+</div>
 <div id="toolbar">
   <div class="tool" id="tool-build">Build (1)</div>
   <div class="tool" id="tool-remove">Remove (2)</div>
@@ -261,6 +265,23 @@ function makeNametagSprite(text){
   const mat=new THREE.SpriteMaterial({map:tex,transparent:true});
   const sprite=new THREE.Sprite(mat); sprite.scale.set(2,0.5,1); return {sprite,canvas,ctx,texture:tex};
 }
+
+const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+
+chatInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && chatInput.value.trim() !== "") {
+    socket.emit("chat", { name: local.name, text: chatInput.value.trim() });
+    chatInput.value = "";
+  }
+});
+
+socket.on("chat", data => {
+  const div = document.createElement("div");
+  div.textContent = data.name + ": " + data.text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+});
 
 function spawnOther(id,p){
   if(others.has(id))return;
@@ -634,6 +655,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
