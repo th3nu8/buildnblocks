@@ -206,13 +206,22 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
   // Movement joystick → set movement vector
   let joyMove = {x:0, y:0};
   setupJoystick(document.getElementById("joystick-left"), (x,y) => {
-    joyMove.x = x; joyMove.y = y;
+    // Reset keys
+    keys['KeyW'] = false;
+    keys['KeyA'] = false;
+    keys['KeyS'] = false;
+    keys['KeyD'] = false;
+
+    if (y < -0.3) keys['KeyW'] = true;  // forward
+    if (y > 0.3)  keys['KeyS'] = true;  // backward
+    if (x < -0.3) keys['KeyA'] = true;  // left
+    if (x > 0.3)  keys['KeyD'] = true;  // right
   });
 
   // Camera joystick → change yaw/pitch
   let joyCam = {x:0, y:0};
   setupJoystick(document.getElementById("joystick-right"), (x,y) => {
-    joyCam.x = x; joyCam.y = y;
+    joyCam.x = -x; joyCam.y = -y;
   });
 
   // Jump button
@@ -223,19 +232,8 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
   // Hook into your step loop
   const oldStep = step;
   step = function(dt) {
-    // Movement override for mobile
     if (/Mobi|Android/i.test(navigator.userAgent)) {
-      let forward = new THREE.Vector3(-Math.sin(local.cam.yaw), 0, -Math.cos(local.cam.yaw));
-      let right = new THREE.Vector3(Math.cos(local.cam.yaw), 0, -Math.sin(local.cam.yaw));
-      let move = new THREE.Vector3();
-      move.addScaledVector(forward, -joyMove.y);
-      move.addScaledVector(right, joyMove.x);
-      if (move.length() > 0) {
-        move.normalize().multiplyScalar(5 * dt);
-        local.pos.add(new THREE.Vector3(move.x, 0, move.z));
-      }
-      // Camera control
-      local.cam.yaw += joyCam.x * dt * 2.5;
+      local.cam.yaw   += joyCam.x * dt * 2.5;
       local.cam.pitch -= joyCam.y * dt * 2.5;
     }
     oldStep(dt);
@@ -774,6 +772,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
