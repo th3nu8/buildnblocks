@@ -346,11 +346,16 @@ window.addEventListener('pointerdown',e=>{
   raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(blocks);
   if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
-  if(activeTool==='build') {
-    if(!blockIndex.has(keyOf(x,y,z))){
-      const color = getBlockColor()
-      makeBlock(x, y, z, false, color)
-      socket.emit('build', {x, y, z, color})
+  if (/Mobi|Android/i.test(navigator.userAgent)) {
+    return;
+  }
+  else {
+    if(activeTool==='build') {
+      if(!blockIndex.has(keyOf(x,y,z))){
+        const color = getBlockColor()
+        makeBlock(x, y, z, false, color)
+        socket.emit('build', {x, y, z, color})
+      }
     }
   }
   // Your remove click path should keep this guard:
@@ -777,3 +782,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
