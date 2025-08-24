@@ -57,54 +57,18 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #saveLoadContainer button:hover {
   background: #fff;
 }
-
-.joystick {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  background: rgba(200, 200, 200, 0.2);
-  border-radius: 50%;
-  touch-action: none;
-}
-.stick {
-  width: 60px;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 50%;
-  position: absolute;
-  top: 30px;
-  left: 30px;
-  pointer-events: none;
-}
-#jump-btn {
-  position: absolute;
-  bottom: 10px;
-  right: 140px;
-  width: 50px;
-  height: 50px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 50%;
-  font-size: 20px;
-  border: none;
-  touch-action: none;
-}
 </style>
 </head>
 <body>
-
-<div id="mobile-ui" style="display:none;">
+<!-- Mobile Controls -->
+<div id="mobile-ui" style="display:none; position:fixed; bottom:0; left:0; right:0; height:100%; pointer-events:none; z-index:20;">
   <!-- Movement joystick (left) -->
-  <div id="joystick-left" class="joystick" style="bottom:40px; left:40px;">
-    <div class="stick"></div>
-  </div>
-
-  <!-- Camera joystick (right) -->
-  <div id="joystick-right" class="joystick" style="bottom:40px; right:40px;">
-    <div class="stick"></div>
+  <div id="joystick-left" class="joystick" style="position:absolute; bottom:40px; left:40px; width:120px; height:120px; background:rgba(255,255,255,0.1); border-radius:50%; pointer-events:auto;">
+    <div class="stick" style="width:60px; height:60px; background:rgba(255,255,255,0.4); border-radius:50%; margin:30px;"></div>
   </div>
 
   <!-- Jump button -->
-  <button id="jump-btn">⤒</button>
+  <div id="jump-btn" style="position:absolute; bottom:60px; right:40px; width:80px; height:80px; background:rgba(255,255,255,0.3); border-radius:50%; text-align:center; line-height:80px; color:#fff; font-family:sans-serif; font-size:18px; pointer-events:auto;">Jump</div>
 </div>
 <div id="chat" style="position:absolute; bottom:700px; left:10px; width:300px; background:rgba(0,0,0,0.5); padding:5px; font-family:sans-serif; font-size:14px; color:white;">
   <div id="chat-messages" style="height:150px; overflow-y:auto; margin-bottom:5px;"></div>
@@ -169,14 +133,15 @@ function getBlockColor() {
   return parseInt(hex.replace('#',''), 16) || 0xffffff
 }
 
+// --- Mobile Controls ---
 if (/Mobi|Android/i.test(navigator.userAgent)) {
   document.getElementById("mobile-ui").style.display = "block";
 
+  // --- Joystick Helper ---
   function setupJoystick(joystick, callback) {
     const stick = joystick.querySelector(".stick");
-    const rect = joystick.getBoundingClientRect();
-    const center = { x: rect.width/2, y: rect.height/2 };
     let active = false;
+    let rect, center;
 
     function update(e) {
       if (!active) return;
@@ -192,6 +157,8 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
     }
 
     joystick.addEventListener("touchstart", e => {
+      rect = joystick.getBoundingClientRect();
+      center = { x: rect.width/2, y: rect.height/2 };
       active = true;
       update(e);
     });
@@ -203,25 +170,12 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
     });
   }
 
-  // Movement joystick → set movement vector
-  let joyMove = {x:0, y:0};
+  // Movement joystick
   setupJoystick(document.getElementById("joystick-left"), (x,y) => {
-    // Reset keys
-    keys['KeyW'] = false;
-    keys['KeyA'] = false;
-    keys['KeyS'] = false;
-    keys['KeyD'] = false;
-
-    if (y < -0.3) keys['KeyW'] = true;  // forward
-    if (y > 0.3)  keys['KeyS'] = true;  // backward
-    if (x < -0.3) keys['KeyA'] = true;  // left
-    if (x > 0.3)  keys['KeyD'] = true;  // right
-  });
-
-  // Camera joystick → change yaw/pitch
-  let joyCam = {x:0, y:0};
-  setupJoystick(document.getElementById("joystick-right"), (x,y) => {
-    joyCam.x = -x; joyCam.y = -y;
+    keys['KeyW'] = y < -0.3;
+    keys['KeyS'] = y > 0.3;
+    keys['KeyA'] = x < -0.3;
+    keys['KeyD'] = x > 0.3;
   });
 
   // Jump button
@@ -229,17 +183,68 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
   jumpBtn.addEventListener("touchstart", e => { e.preventDefault(); keys['Space'] = true; });
   jumpBtn.addEventListener("touchend", e => { e.preventDefault(); keys['Space'] = false; });
 
-  // Hook into your step loop
-  const oldStep = step;
-  step = function(dt) {
-    if (/Mobi|Android/i.test(navigator.userAgent)) {
-      local.cam.yaw   += joyCam.x * dt * 2.5;
-      local.cam.pitch -= joyCam.y * dt * 2.5;
+  // --- Tap vs Hold for build/camera ---
+  let dragTimer = null;
+  let draggingCamera = false;
+  let startX = 0, startY = 0;
+
+  document.addEventListener("touchstart", e => {
+    if (e.target.closest("#joystick-left") || e.target === jumpBtn) return;
+
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+
+    dragTimer = setTimeout(() => {
+      draggingCamera = true;
+    }, 150); // hold threshold
+  });
+
+  document.addEventListener("touchmove", e => {
+    if (!draggingCamera) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+
+    local.cam.yaw -= dx * 0.005;
+    local.cam.pitch -= dy * 0.005;
+    local.cam.pitch = Math.max(-1.2, Math.min(1.2, local.cam.pitch));
+  });
+
+  document.addEventListener("touchend", e => {
+    if (dragTimer) {
+      clearTimeout(dragTimer);
+      dragTimer = null;
     }
-    oldStep(dt);
-  };
+
+    if (!draggingCamera && !(e.target.closest("#joystick-left") || e.target === jumpBtn)) {
+      // treat as tap → place/remove depending on tool
+      mouse.x = (e.changedTouches[0].clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.changedTouches[0].clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(blocks);
+      if (hits.length > 0 && activeTool) {
+        const hit = hits[0];
+        if (activeTool === 'build') {
+          const pos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
+          const x = Math.floor(pos.x), y = Math.floor(pos.y), z = Math.floor(pos.z);
+          if (!blockIndex.has(keyOf(x,y,z))) {
+            const color = getBlockColor();
+            makeBlock(x,y,z,false,color);
+            socket.emit('build', {x,y,z,color});
+          }
+        } else if (activeTool === 'remove') {
+          const bx = Math.floor(hit.object.position.x - 0.5);
+          const by = Math.floor(hit.object.position.y - 0.5);
+          const bz = Math.floor(hit.object.position.z - 0.5);
+          if (removeBlockAt(bx,by,bz)) socket.emit('remove', {x:bx,y:by,z:bz});
+        }
+      }
+    }
+    draggingCamera = false;
+  });
 }
-  
+
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
@@ -772,10 +777,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
