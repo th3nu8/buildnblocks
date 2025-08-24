@@ -57,9 +57,55 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #saveLoadContainer button:hover {
   background: #fff;
 }
+
+.joystick {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  background: rgba(200, 200, 200, 0.2);
+  border-radius: 50%;
+  touch-action: none;
+}
+.stick {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  pointer-events: none;
+}
+#jump-btn {
+  position: absolute;
+  bottom: 80px;
+  right: 40px;
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  font-size: 20px;
+  border: none;
+  touch-action: none;
+}
 </style>
 </head>
 <body>
+
+<div id="mobile-ui" style="display:none;">
+  <!-- Movement joystick (left) -->
+  <div id="joystick-left" class="joystick" style="bottom:40px; left:40px;">
+    <div class="stick"></div>
+  </div>
+
+  <!-- Camera joystick (right) -->
+  <div id="joystick-right" class="joystick" style="bottom:40px; right:40px;">
+    <div class="stick"></div>
+  </div>
+
+  <!-- Jump button -->
+  <button id="jump-btn">⤒</button>
+</div>
 <div id="chat" style="position:absolute; bottom:50px; left:10px; width:300px; background:rgba(0,0,0,0.5); padding:5px; font-family:sans-serif; font-size:14px; color:white;">
   <div id="chat-messages" style="height:150px; overflow-y:auto; margin-bottom:5px;"></div>
   <input id="chat-input" type="text" placeholder="Type a message..." style="width:100%; box-sizing:border-box;">
@@ -123,6 +169,79 @@ function getBlockColor() {
   return parseInt(hex.replace('#',''), 16) || 0xffffff
 }
 
+if (/Mobi|Android/i.test(navigator.userAgent)) {
+  document.getElementById("mobile-ui").style.display = "block";
+
+  function setupJoystick(joystick, callback) {
+    const stick = joystick.querySelector(".stick");
+    const rect = joystick.getBoundingClientRect();
+    const center = { x: rect.width/2, y: rect.height/2 };
+    let active = false;
+
+    function update(e) {
+      if (!active) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - rect.left - center.x;
+      const dy = touch.clientY - rect.top - center.y;
+      const dist = Math.min(Math.hypot(dx, dy), rect.width/2 - 20);
+      const angle = Math.atan2(dy, dx);
+      const x = Math.cos(angle) * dist;
+      const y = Math.sin(angle) * dist;
+      stick.style.transform = `translate(${x}px, ${y}px)`;
+      callback(x/(rect.width/2), y/(rect.height/2));
+    }
+
+    joystick.addEventListener("touchstart", e => {
+      active = true;
+      update(e);
+    });
+    joystick.addEventListener("touchmove", update);
+    joystick.addEventListener("touchend", () => {
+      active = false;
+      stick.style.transform = "translate(0,0)";
+      callback(0,0);
+    });
+  }
+
+  // Movement joystick → set movement vector
+  let joyMove = {x:0, y:0};
+  setupJoystick(document.getElementById("joystick-left"), (x,y) => {
+    joyMove.x = x; joyMove.y = y;
+  });
+
+  // Camera joystick → change yaw/pitch
+  let joyCam = {x:0, y:0};
+  setupJoystick(document.getElementById("joystick-right"), (x,y) => {
+    joyCam.x = x; joyCam.y = y;
+  });
+
+  // Jump button
+  const jumpBtn = document.getElementById("jump-btn");
+  jumpBtn.addEventListener("touchstart", e => { e.preventDefault(); keys['Space'] = true; });
+  jumpBtn.addEventListener("touchend", e => { e.preventDefault(); keys['Space'] = false; });
+
+  // Hook into your step loop
+  const oldStep = step;
+  step = function(dt) {
+    // Movement override for mobile
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+      let forward = new THREE.Vector3(-Math.sin(local.cam.yaw), 0, -Math.cos(local.cam.yaw));
+      let right = new THREE.Vector3(Math.cos(local.cam.yaw), 0, -Math.sin(local.cam.yaw));
+      let move = new THREE.Vector3();
+      move.addScaledVector(forward, -joyMove.y);
+      move.addScaledVector(right, joyMove.x);
+      if (move.length() > 0) {
+        move.normalize().multiplyScalar(5 * dt);
+        local.pos.add(new THREE.Vector3(move.x, 0, move.z));
+      }
+      // Camera control
+      local.cam.yaw += joyCam.x * dt * 2.5;
+      local.cam.pitch -= joyCam.y * dt * 2.5;
+    }
+    oldStep(dt);
+  };
+}
+  
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
 function keyOf(x,y,z){return `${x}|${y}|${z}`;}
@@ -655,3 +774,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
