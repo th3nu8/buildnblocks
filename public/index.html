@@ -206,8 +206,8 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
 
-    local.cam.yaw -= dx * 0.005;
-    local.cam.pitch += dy * 0.005;
+    local.cam.yaw -= dx * 0.01;
+    local.cam.pitch += dy * 0.01;
     local.cam.pitch = Math.max(-1.2, Math.min(1.2, local.cam.pitch));
   });
 
@@ -781,6 +781,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
