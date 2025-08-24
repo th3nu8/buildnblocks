@@ -347,7 +347,7 @@ window.addEventListener('pointerdown',e=>{
   if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
   if (/Mobi|Android/i.test(navigator.userAgent)) {
-    return;
+    
   } else {
     if(activeTool==='build') {
       if(!blockIndex.has(keyOf(x,y,z))){
@@ -781,5 +781,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
