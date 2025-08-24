@@ -348,8 +348,7 @@ window.addEventListener('pointerdown',e=>{
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
   if (/Mobi|Android/i.test(navigator.userAgent)) {
     return;
-  }
-  else {
+  } else {
     if(activeTool==='build') {
       if(!blockIndex.has(keyOf(x,y,z))){
         const color = getBlockColor()
@@ -782,4 +781,5 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
