@@ -684,18 +684,6 @@ function step(dt) {
         local.onGround = true;
     }
 
-    // Apply strongest ceiling
-    if (hitCeil) {
-        local.pos.y = minCeilY;
-        local.vel.y = 0;
-    }
-
-    // Apply averaged horizontal adjustment
-    if (horizCount > 0) {
-        horizAdjust.divideScalar(horizCount);
-        local.pos.add(horizAdjust);
-    }
-
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
 
@@ -809,6 +797,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
