@@ -1,31 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Fredoka Example</title>
-<!-- Import Fredoka font from Google Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Fredoka&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="bnb-favicon.png?">
 <meta charset="utf-8" />
 <title>BuildNBlocks</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-body {
-  font-family: 'Fredoka', sans-serif;
-  background-color: white; /* or whatever you want */
-}
-
-h1 {
-  text-align: center;
-  font-size: 2rem; 
-  font-weight: normal;
-  background: none; /* ensures no background */
-}
 body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
 .tool{padding:6px 12px;border:1px solid #fff;border-radius:4px;cursor:pointer;user-select:none;}
@@ -141,7 +121,6 @@ html, body {
 </style>
 </head>
 <body>
-<h1>BuildNBlocks Open Beta!</h1>
 <!-- Mobile Controls -->
 <div id="mobile-ui" style="display:none; position:fixed; bottom:0; left:0; right:0; height:100%; pointer-events:none; z-index:20;">
   <!-- Movement joystick (left) -->
@@ -918,23 +897,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
