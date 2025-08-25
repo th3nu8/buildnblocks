@@ -498,9 +498,9 @@ function makeNametagSprite(text){
 const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 
-// Press T → focus chat input
+// Press Enter → focus chat input
 window.addEventListener("keydown", e => {
-  if (e.code === "KeyT") {
+  if (e.code === "KeyEnter") {
     e.preventDefault();
     chatInput.focus();
   }
@@ -897,6 +897,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
