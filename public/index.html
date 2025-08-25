@@ -637,7 +637,7 @@ function step(dt) {
 
         // Pick the smallest overlap axis
         if (overlapY < overlapX && overlapY < overlapZ) {
-            // --- Vertical (floor/ceiling) ---
+          // --- Vertical (floor/ceiling) ---
           if (local.pos.y > b.position.y) {
             // Player is above block → standing on floor
             maxFloorY = Math.max(maxFloorY, max.y + halfHeight);
@@ -667,15 +667,15 @@ function step(dt) {
       }
     });
 
-// Apply floor/ceiling adjustments after scanning all blocks
-if (hitFloor) {
-    local.pos.y = maxFloorY;
-    local.vel.y = Math.max(0, local.vel.y); // prevent sinking
-    local.onGround = true;
-} else if (hitCeil) {
-    local.pos.y = minCeilY;
-    if (local.vel.y > 0) local.vel.y = 0;
-}
+  // Apply floor/ceiling adjustments after scanning all blocks
+    if (hitFloor) {
+      local.pos.y = maxFloorY;
+      local.vel.y = Math.max(0, local.vel.y); // prevent sinking
+      local.onGround = true;
+    } else if (hitCeil) {
+      local.pos.y = minCeilY;
+      if (local.vel.y > 0) local.vel.y = 0;
+    }
 
     // Apply strongest floor
     if (hitFloor) {
@@ -809,6 +809,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
