@@ -604,89 +604,95 @@ function step(dt) {
     const playerHeight = 2.5;
     const halfHeight = playerHeight / 2;
 
-    const playerMin = new THREE.Vector3(
-      local.pos.x - radius,
-      local.pos.y - halfHeight,
-      local.pos.z - radius
-    );
-    const playerMax = new THREE.Vector3(
-      local.pos.x + radius,
-      local.pos.y + halfHeight,
-      local.pos.z + radius
-    );
-
     local.onGround = false;
 
-    let maxFloorY = -Infinity;
-    let minCeilY = Infinity;
-    let hitFloor = false;
-    let hitCeil = false;
+    function getAABB(pos) {
+      return {
+        min: new THREE.Vector3(
+          pos.x - radius,
+          pos.y - halfHeight,
+          pos.z - radius
+        ),
+        max: new THREE.Vector3(
+          pos.x + radius,
+          pos.y + halfHeight,
+          pos.z + radius
+        )
+      };
+    }
 
-    // Track which axes got blocked
-    let blockX = false;
-    let blockZ = false;
+    function intersects(a, b) {
+      return (a.max.x > b.min.x && a.min.x < b.max.x &&
+        a.max.y > b.min.y && a.min.y < b.max.y &&
+        a.max.z > b.min.z && a.min.z < b.max.z);
+    }
+
+    // --- STEP 1: resolve Y axis (gravity, floor, ceiling) ---
+    local.pos.y += local.vel.y;
+    let aabb = getAABB(local.pos);
 
     blocks.forEach(b => {
-      const min = b.position.clone().subScalar(0.5);
-      const max = b.position.clone().addScalar(0.5);
+      const blockAABB = {
+        min: b.position.clone().subScalar(0.5),
+        max: b.position.clone().addScalar(0.5)
+      };
 
-      if (playerMax.x > min.x && playerMin.x < max.x &&
-        playerMax.y > min.y && playerMin.y < max.y &&
-        playerMax.z > min.z && playerMin.z < max.z) {
-
-        const overlapX = Math.min(playerMax.x - min.x, max.x - playerMin.x);
-        const overlapY = Math.min(playerMax.y - min.y, max.y - playerMin.y);
-        const overlapZ = Math.min(playerMax.z - min.z, max.z - playerMin.z);
-
-        const minOverlap = Math.min(overlapX, overlapY, overlapZ);
-
-        if (minOverlap === overlapY) {
-          if (local.vel.y <= 0 && (playerMin.y < max.y)) {
-            // Floor
-            maxFloorY = Math.max(maxFloorY, max.y + halfHeight);
-            hitFloor = true;
-          } else if (local.vel.y > 0) {
-            // Ceiling
-            minCeilY = Math.min(minCeilY, min.y - halfHeight);
-            hitCeil = true;
-          }
-        } else if (minOverlap === overlapX) {
-          // Collided in X axis → block X movement
-          blockX = true;
-          if (local.pos.x < b.position.x) {
-            local.pos.x -= overlapX;
-          } else {
-            local.pos.x += overlapX;
-          }
-        } else {
-          // Collided in Z axis → block Z movement
-          blockZ = true;
-          if (local.pos.z < b.position.z) {
-            local.pos.z -= overlapZ;
-          } else {
-            local.pos.z += overlapZ;
-          }
+      if (intersects(aabb, blockAABB)) {
+        if (local.vel.y > 0) {
+          // ceiling
+          local.pos.y = blockAABB.min.y - halfHeight;
+        } else if (local.vel.y < 0) {
+          // floor
+          local.pos.y = blockAABB.max.y + halfHeight;
+          local.onGround = true;
         }
+        local.vel.y = 0;
+        aabb = getAABB(local.pos);
       }
     });
 
-  // Apply floor
-  if (hitFloor) {
-    local.pos.y = maxFloorY;
-    local.vel.y = 0;
-    local.onGround = true;
-  }
-  // Apply ceiling
-  if (hitCeil) {
-    local.pos.y = minCeilY;
-    local.vel.y = 0;
-  }
+    // --- STEP 2: resolve X axis ---
+    local.pos.x += local.vel.x;
+    aabb = getAABB(local.pos);
 
-  // Kill velocity only in blocked directions (fixes jitter)
-  if (blockX) local.vel.x = 0;
-  if (blockZ) local.vel.z = 0;
+    blocks.forEach(b => {
+      const blockAABB = {
+        min: b.position.clone().subScalar(0.5),
+        max: b.position.clone().addScalar(0.5)
+      };
 
+      if (intersects(aabb, blockAABB)) {
+        if (local.vel.x > 0) {
+          local.pos.x = blockAABB.min.x - radius;
+        } else if (local.vel.x < 0) {
+          local.pos.x = blockAABB.max.x + radius;
+        }
+        local.vel.x = 0;
+        aabb = getAABB(local.pos);
+      }
+    });
 
+    // --- STEP 3: resolve Z axis ---
+    local.pos.z += local.vel.z;
+    aabb = getAABB(local.pos);
+
+    blocks.forEach(b => {
+      const blockAABB = {
+        min: b.position.clone().subScalar(0.5),
+        max: b.position.clone().addScalar(0.5)
+      };
+
+      if (intersects(aabb, blockAABB)) {
+        if (local.vel.z > 0) {
+          local.pos.z = blockAABB.min.z - radius;
+        } else if (local.vel.z < 0) {
+          local.pos.z = blockAABB.max.z + radius;
+        }
+        local.vel.z = 0;
+        aabb = getAABB(local.pos);
+      }
+    });
+  
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
 
@@ -800,6 +806,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
