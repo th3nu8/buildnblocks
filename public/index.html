@@ -15,7 +15,7 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #playerList{position:fixed;top:50px;right:8px;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;font:13px/1.2 system-ui,sans-serif;border-radius:6px;z-index:5;}
 #healthContainer {
   position: fixed;
-  bottom: 20px;
+  bottom: 20px; 
   left: 20px;
   width: 200px;
   height: 20px;
@@ -500,7 +500,7 @@ const chatInput = document.getElementById("chat-input");
 
 // Press Enter → focus chat input
 window.addEventListener("keydown", e => {
-  if (e.code === "KeyEnter") {
+  if (e.code === "/") {
     e.preventDefault();
     chatInput.focus();
   }
@@ -897,6 +897,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
