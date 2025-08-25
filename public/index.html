@@ -57,6 +57,67 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #saveLoadContainer button:hover {
   background: #fff;
 }
+
+/* --- Mobile Controls --- */
+#mobile-ui {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* UI ignores clicks except controls */
+  z-index: 100;
+}
+
+#joystick-left {
+  position: absolute;
+  bottom: 80px;
+  left: 40px;
+  width: 120px;
+  height: 120px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#joystick-left .stick {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60px;
+  height: 60px;
+  margin: -30px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 50%;
+  transition: transform 0.05s linear;
+}
+
+#jump-btn {
+  position: absolute;
+  bottom: 100px;
+  right: 40px;
+  width: 80px;
+  height: 80px;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.5);
+  border-radius: 50%;
+  font-size: 20px;
+  color: white;
+  text-align: center;
+  line-height: 80px;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+html, body {
+  touch-action: none;     /* Disable default gestures */
+  overscroll-behavior: none; /* Prevent rubber band scroll */
+}
+
+#mobile-ui, #joystick-left, #jump-btn, canvas {
+  touch-action: none;     /* Ensure these elements don’t trigger pinch/zoom */
+}
 </style>
 </head>
 <body>
@@ -145,7 +206,7 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
 
     function reset() {
       stick.style.transform = `translate(0,0)`;
-      callback(0, 0);
+      callback(0,0);
     }
 
     joystick.addEventListener("touchstart", e => {
@@ -153,7 +214,7 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
       const t = e.changedTouches[0];
       activeTouch = t.identifier;
       rect = joystick.getBoundingClientRect();
-      center = { x: rect.width / 2, y: rect.height / 2 };
+      center = { x: rect.width/2, y: rect.height/2 };
       update(t);
     });
 
@@ -175,16 +236,16 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
     function update(t) {
       const dx = t.clientX - rect.left - center.x;
       const dy = t.clientY - rect.top - center.y;
-      const dist = Math.min(Math.hypot(dx, dy), rect.width / 2 - 20);
+      const dist = Math.min(Math.hypot(dx, dy), rect.width/2 - 20);
       const angle = Math.atan2(dy, dx);
       const x = Math.cos(angle) * dist;
       const y = Math.sin(angle) * dist;
       stick.style.transform = `translate(${x}px, ${y}px)`;
-      callback(x / (rect.width / 2), y / (rect.height / 2));
+      callback(x/(rect.width/2), y/(rect.height/2));
     }
   }
 
-  setupJoystick(document.getElementById("joystick-left"), (x, y) => {
+  setupJoystick(document.getElementById("joystick-left"), (x,y) => {
     keys['KeyW'] = y < -0.3;
     keys['KeyS'] = y > 0.3;
     keys['KeyA'] = x < -0.3;
@@ -220,7 +281,7 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
     dragTimer = setTimeout(() => {
       draggingCamera = true;
     }, 150); // hold threshold
-  }, { passive: false });
+  });
 
   document.addEventListener("touchmove", e => {
     if (activeCamTouch === null || !draggingCamera) return;
@@ -231,13 +292,12 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
         startX = t.clientX;
         startY = t.clientY;
 
-        // Camera rotation
         local.cam.yaw -= dx * 0.01;
         local.cam.pitch += dy * 0.01;
         local.cam.pitch = Math.max(-1.2, Math.min(1.2, local.cam.pitch));
       }
     }
-  }, { passive: false });
+  });
 
   document.addEventListener("touchend", e => {
     for (let t of e.changedTouches) {
@@ -258,16 +318,16 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
             if (activeTool === 'build') {
               const pos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
               const x = Math.floor(pos.x), y = Math.floor(pos.y), z = Math.floor(pos.z);
-              if (!blockIndex.has(keyOf(x, y, z))) {
+              if (!blockIndex.has(keyOf(x,y,z))) {
                 const color = getBlockColor();
-                makeBlock(x, y, z, false, color);
-                socket.emit('build', { x, y, z, color });
+                makeBlock(x,y,z,false,color);
+                socket.emit('build', {x,y,z,color});
               }
             } else if (activeTool === 'remove') {
               const bx = Math.floor(hit.object.position.x - 0.5);
               const by = Math.floor(hit.object.position.y - 0.5);
               const bz = Math.floor(hit.object.position.z - 0.5);
-              if (removeBlockAt(bx, by, bz)) socket.emit('remove', { x: bx, y: by, z: bz });
+              if (removeBlockAt(bx,by,bz)) socket.emit('remove', {x:bx,y:by,z:bz});
             }
           }
         }
@@ -276,6 +336,15 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
         activeCamTouch = null;
       }
     }
+  });
+
+  // --- FIX: Prevent pinch-zoom/scroll ---
+  document.addEventListener("gesturestart", e => e.preventDefault());
+  document.addEventListener("gesturechange", e => e.preventDefault());
+  document.addEventListener("gestureend", e => e.preventDefault());
+
+  document.addEventListener("touchmove", e => {
+    if (e.touches.length > 1) e.preventDefault();
   }, { passive: false });
 }
 
@@ -828,6 +897,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
