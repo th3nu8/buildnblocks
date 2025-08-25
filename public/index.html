@@ -10,16 +10,21 @@
 <title>BuildNBlocks</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 body {
-  margin: 0; /* Remove default margin */
   font-family: 'Fredoka', sans-serif;
+  background-color: white; /* or whatever you want */
 }
 
 h1 {
-  text-align: center; /* Center the text horizontally */
-  margin: 20px 0 0 0; /* Space from the top */
-  padding: 0; /* No padding */
-  background: none; /* No box or background */
+  text-align: center;
+  font-size: 2rem; 
+  font-weight: normal;
+  background: none; /* ensures no background */
 }
 body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
@@ -913,6 +918,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
