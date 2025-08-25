@@ -156,18 +156,53 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
       callback(x/(rect.width/2), y/(rect.height/2));
     }
 
-    joystick.addEventListener("touchstart", e => {
-      rect = joystick.getBoundingClientRect();
-      center = { x: rect.width/2, y: rect.height/2 };
-      active = true;
-      update(e);
+   let leftStickTouch = null;   // finger controlling joystick
+    let jumpTouch = null;        // finger for jump
+    let placingTouch = null;     // finger for tapping to place blocks
+
+    document.addEventListener("touchstart", e => {
+      for (let t of e.changedTouches) {
+        // If touch starts in left joystick area
+        if (t.clientX < window.innerWidth / 2 && !leftStickTouch) {
+          leftStickTouch = t.identifier;
+          // start joystick tracking here
+        }
+        // If touch starts on jump button
+        else if (isOnJumpButton(t) && !jumpTouch) {
+          jumpTouch = t.identifier;
+          // trigger jump
+        }
+        // Otherwise it's a tap for placing
+        else if (!placingTouch) {
+          placingTouch = t.identifier;
+          // place block
+        }
+      }
     });
-    joystick.addEventListener("touchmove", update);
-    joystick.addEventListener("touchend", () => {
-      active = false;
-      stick.style.transform = "translate(0,0)";
-      callback(0,0);
+
+    document.addEventListener("touchmove", e => {
+      for (let t of e.changedTouches) {
+        if (t.identifier === leftStickTouch) {
+          // update joystick position
+        }
+      }
     });
+
+    document.addEventListener("touchend", e => {
+      for (let t of e.changedTouches) {
+        if (t.identifier === leftStickTouch) {
+          leftStickTouch = null;
+          // reset joystick
+        }
+        if (t.identifier === jumpTouch) {
+          jumpTouch = null;
+        }
+        if (t.identifier === placingTouch) {
+          placingTouch = null;
+        }
+      }
+    });
+
   }
 
   // Movement joystick
@@ -794,3 +829,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
