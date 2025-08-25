@@ -697,7 +697,7 @@ function step(dt) {
     }
 
     if (local.health <= 0) {
-        local.pos.set(0, 2.5, 0);
+        local.pos.set(-15, 5, 0);
         local.vel.set(0, 0, 0);
         local.health = 100;
     }
@@ -897,5 +897,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
