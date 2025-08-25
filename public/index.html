@@ -137,148 +137,145 @@ function getBlockColor() {
 if (/Mobi|Android/i.test(navigator.userAgent)) {
   document.getElementById("mobile-ui").style.display = "block";
 
-  // --- Joystick Helper ---
-  function setupJoystick(joystick, callback) {
-    const stick = joystick.querySelector(".stick");
-    let active = false;
-    let rect, center;
+// --- Movement joystick ---
+function setupJoystick(joystick, callback) {
+  const stick = joystick.querySelector(".stick");
+  let activeTouch = null;
+  let rect, center;
 
-    function update(e) {
-      if (!active) return;
-      const touch = e.touches[0];
-      const dx = touch.clientX - rect.left - center.x;
-      const dy = touch.clientY - rect.top - center.y;
-      const dist = Math.min(Math.hypot(dx, dy), rect.width/2 - 20);
-      const angle = Math.atan2(dy, dx);
-      const x = Math.cos(angle) * dist;
-      const y = Math.sin(angle) * dist;
-      stick.style.transform = `translate(${x}px, ${y}px)`;
-      callback(x/(rect.width/2), y/(rect.height/2));
-    }
-
-   let leftStickTouch = null;   // finger controlling joystick
-    let jumpTouch = null;        // finger for jump
-    let placingTouch = null;     // finger for tapping to place blocks
-
-    document.addEventListener("touchstart", e => {
-      for (let t of e.changedTouches) {
-        // If touch starts in left joystick area
-        if (t.clientX < window.innerWidth / 2 && !leftStickTouch) {
-          leftStickTouch = t.identifier;
-          // start joystick tracking here
-        }
-        // If touch starts on jump button
-        else if (isOnJumpButton(t) && !jumpTouch) {
-          jumpTouch = t.identifier;
-          // trigger jump
-        }
-        // Otherwise it's a tap for placing
-        else if (!placingTouch) {
-          placingTouch = t.identifier;
-          // place block
-        }
-      }
-    });
-
-    document.addEventListener("touchmove", e => {
-      for (let t of e.changedTouches) {
-        if (t.identifier === leftStickTouch) {
-          // update joystick position
-        }
-      }
-    });
-
-    document.addEventListener("touchend", e => {
-      for (let t of e.changedTouches) {
-        if (t.identifier === leftStickTouch) {
-          leftStickTouch = null;
-          // reset joystick
-        }
-        if (t.identifier === jumpTouch) {
-          jumpTouch = null;
-        }
-        if (t.identifier === placingTouch) {
-          placingTouch = null;
-        }
-      }
-    });
-
+  function reset() {
+    stick.style.transform = `translate(0,0)`;
+    callback(0,0);
   }
 
-  // Movement joystick
-  setupJoystick(document.getElementById("joystick-left"), (x,y) => {
-    keys['KeyW'] = y < -0.3;
-    keys['KeyS'] = y > 0.3;
-    keys['KeyA'] = x < -0.3;
-    keys['KeyD'] = x > 0.3;
+  joystick.addEventListener("touchstart", e => {
+    if (activeTouch !== null) return;
+    const t = e.changedTouches[0];
+    activeTouch = t.identifier;
+    rect = joystick.getBoundingClientRect();
+    center = { x: rect.width/2, y: rect.height/2 };
+    update(t);
   });
 
-  // Jump button
-  const jumpBtn = document.getElementById("jump-btn");
-  jumpBtn.addEventListener("touchstart", e => { e.preventDefault(); keys['Space'] = true; });
-  jumpBtn.addEventListener("touchend", e => { e.preventDefault(); keys['Space'] = false; });
-
-  // --- Tap vs Hold for build/camera ---
-  let dragTimer = null;
-  let draggingCamera = false;
-  let startX = 0, startY = 0;
-
-  document.addEventListener("touchstart", e => {
-    if (e.target.closest("#joystick-left") || e.target === jumpBtn) return;
-
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-
-    dragTimer = setTimeout(() => {
-      draggingCamera = true;
-    }, 150); // hold threshold
-  });
-
-  document.addEventListener("touchmove", e => {
-    if (!draggingCamera) return;
-    const dx = e.touches[0].clientX - startX;
-    const dy = e.touches[0].clientY - startY;
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-
-    local.cam.yaw -= dx * 0.01;
-    local.cam.pitch += dy * 0.01;
-    local.cam.pitch = Math.max(-1.2, Math.min(1.2, local.cam.pitch));
-  });
-
-  document.addEventListener("touchend", e => {
-    if (dragTimer) {
-      clearTimeout(dragTimer);
-      dragTimer = null;
+  joystick.addEventListener("touchmove", e => {
+    for (let t of e.changedTouches) {
+      if (t.identifier === activeTouch) update(t);
     }
+  });
 
-    if (!draggingCamera && !(e.target.closest("#joystick-left") || e.target === jumpBtn)) {
-      // treat as tap → place/remove depending on tool
-      mouse.x = (e.changedTouches[0].clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(e.changedTouches[0].clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(blocks);
-      if (hits.length > 0 && activeTool) {
-        const hit = hits[0];
-        if (activeTool === 'build') {
-          const pos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
-          const x = Math.floor(pos.x), y = Math.floor(pos.y), z = Math.floor(pos.z);
-          if (!blockIndex.has(keyOf(x,y,z))) {
-            const color = getBlockColor();
-            makeBlock(x,y,z,false,color);
-            socket.emit('build', {x,y,z,color});
-          }
-        } else if (activeTool === 'remove') {
-          const bx = Math.floor(hit.object.position.x - 0.5);
-          const by = Math.floor(hit.object.position.y - 0.5);
-          const bz = Math.floor(hit.object.position.z - 0.5);
-          if (removeBlockAt(bx,by,bz)) socket.emit('remove', {x:bx,y:by,z:bz});
-        }
+  joystick.addEventListener("touchend", e => {
+    for (let t of e.changedTouches) {
+      if (t.identifier === activeTouch) {
+        activeTouch = null;
+        reset();
       }
     }
-    draggingCamera = false;
   });
+
+  function update(t) {
+    const dx = t.clientX - rect.left - center.x;
+    const dy = t.clientY - rect.top - center.y;
+    const dist = Math.min(Math.hypot(dx, dy), rect.width/2 - 20);
+    const angle = Math.atan2(dy, dx);
+    const x = Math.cos(angle) * dist;
+    const y = Math.sin(angle) * dist;
+    stick.style.transform = `translate(${x}px, ${y}px)`;
+    callback(x/(rect.width/2), y/(rect.height/2));
+  }
 }
+
+setupJoystick(document.getElementById("joystick-left"), (x,y) => {
+  keys['KeyW'] = y < -0.3;
+  keys['KeyS'] = y > 0.3;
+  keys['KeyA'] = x < -0.3;
+  keys['KeyD'] = x > 0.3;
+});
+
+// --- Jump button ---
+const jumpBtn = document.getElementById("jump-btn");
+jumpBtn.addEventListener("touchstart", e => {
+  e.preventDefault();
+  keys['Space'] = true;
+});
+jumpBtn.addEventListener("touchend", e => {
+  e.preventDefault();
+  keys['Space'] = false;
+});
+
+// --- Tap vs Hold for build/camera ---
+let dragTimer = null;
+let draggingCamera = false;
+let startX = 0, startY = 0;
+let activeCamTouch = null;
+
+document.addEventListener("touchstart", e => {
+  // ignore joystick + jump touches
+  if (e.target.closest("#joystick-left") || e.target === jumpBtn) return;
+
+  const t = e.changedTouches[0];
+  activeCamTouch = t.identifier;
+  startX = t.clientX;
+  startY = t.clientY;
+
+  dragTimer = setTimeout(() => {
+    draggingCamera = true;
+  }, 150); // hold threshold
+});
+
+document.addEventListener("touchmove", e => {
+  if (activeCamTouch === null || !draggingCamera) return;
+  for (let t of e.changedTouches) {
+    if (t.identifier === activeCamTouch) {
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      startX = t.clientX;
+      startY = t.clientY;
+
+      local.cam.yaw -= dx * 0.01;
+      local.cam.pitch += dy * 0.01;
+      local.cam.pitch = Math.max(-1.2, Math.min(1.2, local.cam.pitch));
+    }
+  }
+});
+
+document.addEventListener("touchend", e => {
+  for (let t of e.changedTouches) {
+    if (t.identifier === activeCamTouch) {
+      if (dragTimer) {
+        clearTimeout(dragTimer);
+        dragTimer = null;
+      }
+
+      if (!draggingCamera) {
+        // tap = place/remove
+        mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects(blocks);
+        if (hits.length > 0 && activeTool) {
+          const hit = hits[0];
+          if (activeTool === 'build') {
+            const pos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
+            const x = Math.floor(pos.x), y = Math.floor(pos.y), z = Math.floor(pos.z);
+            if (!blockIndex.has(keyOf(x,y,z))) {
+              const color = getBlockColor();
+              makeBlock(x,y,z,false,color);
+              socket.emit('build', {x,y,z,color});
+            }
+          } else if (activeTool === 'remove') {
+            const bx = Math.floor(hit.object.position.x - 0.5);
+            const by = Math.floor(hit.object.position.y - 0.5);
+            const bz = Math.floor(hit.object.position.z - 0.5);
+            if (removeBlockAt(bx,by,bz)) socket.emit('remove', {x:bx,y:by,z:bz});
+          }
+        }
+      }
+
+      draggingCamera = false;
+      activeCamTouch = null;
+    }
+  }
+});
 
 /* ---------- BLOCKS ---------- */
 const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
@@ -829,4 +826,5 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
