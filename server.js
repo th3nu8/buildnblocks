@@ -55,7 +55,7 @@ buildGround();
 
 
 // ----- VALIDATION LIMITS -----
-const MAX_BLOCKS_UPLOAD = 10000;
+const MAX_BLOCKS_UPLOAD = 999999999;
 const MIN_COORD = -512;
 const MAX_COORD = 512;
 
@@ -174,6 +174,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
 
 
 
