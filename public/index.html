@@ -617,11 +617,14 @@ function step(dt) {
 
     local.onGround = false;
 
-    // Track strongest floor/ceiling corrections
     let maxFloorY = -Infinity;
     let minCeilY = Infinity;
     let hitFloor = false;
     let hitCeil = false;
+
+    // Track which axes got blocked
+    let blockX = false;
+    let blockZ = false;
 
     blocks.forEach(b => {
       const min = b.position.clone().subScalar(0.5);
@@ -635,54 +638,54 @@ function step(dt) {
         const overlapY = Math.min(playerMax.y - min.y, max.y - playerMin.y);
         const overlapZ = Math.min(playerMax.z - min.z, max.z - playerMin.z);
 
-        // Pick the smallest overlap axis
-        if (overlapY < overlapX && overlapY < overlapZ) {
-          // --- Vertical (floor/ceiling) ---
-          if (local.pos.y > b.position.y) {
-            // Player is above block → standing on floor
+        const minOverlap = Math.min(overlapX, overlapY, overlapZ);
+
+        if (minOverlap === overlapY) {
+          if (local.vel.y <= 0 && (playerMin.y < max.y)) {
+            // Floor
             maxFloorY = Math.max(maxFloorY, max.y + halfHeight);
             hitFloor = true;
-          } else {
-            // Player is below block → hitting ceiling
+          } else if (local.vel.y > 0) {
+            // Ceiling
             minCeilY = Math.min(minCeilY, min.y - halfHeight);
             hitCeil = true;
           }
-        } else if (overlapX < overlapZ) {
-          // --- Horizontal X wall ---
-          if (local.pos.x > b.position.x) {
-            local.pos.x += overlapX;
-          } else {
+        } else if (minOverlap === overlapX) {
+          // Collided in X axis → block X movement
+          blockX = true;
+          if (local.pos.x < b.position.x) {
             local.pos.x -= overlapX;
-          }
-          local.vel.x = 0; // stop X but keep Y + Z
-        } else {
-          // --- Horizontal Z wall ---
-          if (local.pos.z > b.position.z) {
-            local.pos.z += overlapZ;
           } else {
-            local.pos.z -= overlapZ;
+            local.pos.x += overlapX;
           }
-          local.vel.z = 0; // stop Z but keep Y + X
+        } else {
+          // Collided in Z axis → block Z movement
+          blockZ = true;
+          if (local.pos.z < b.position.z) {
+            local.pos.z -= overlapZ;
+          } else {
+            local.pos.z += overlapZ;
+          }
         }
       }
     });
 
-  // Apply floor/ceiling adjustments after scanning all blocks
-    if (hitFloor) {
-      local.pos.y = maxFloorY;
-      local.vel.y = Math.max(0, local.vel.y); // prevent sinking
-      local.onGround = true;
-    } else if (hitCeil) {
-      local.pos.y = minCeilY;
-      if (local.vel.y > 0) local.vel.y = 0;
-    }
+  // Apply floor
+  if (hitFloor) {
+    local.pos.y = maxFloorY;
+    local.vel.y = 0;
+    local.onGround = true;
+  }
+  // Apply ceiling
+  if (hitCeil) {
+    local.pos.y = minCeilY;
+    local.vel.y = 0;
+  }
 
-    // Apply strongest floor
-    if (hitFloor) {
-        local.pos.y = maxFloorY;
-        local.vel.y = 0;
-        local.onGround = true;
-    }
+  // Kill velocity only in blocked directions (fixes jitter)
+  if (blockX) local.vel.x = 0;
+  if (blockZ) local.vel.z = 0;
+
 
     // Jump
     if (local.onGround && keys['Space']) local.vel.y = 12;
@@ -797,6 +800,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
