@@ -172,48 +172,5 @@ io.on('connection', (socket) => {
   });
 });
 
-const fs = require("fs");
-const SAVE_FILE = "world.json";
-
-// Load world on server start
-try {
-  if (fs.existsSync(SAVE_FILE)) {
-    const data = fs.readFileSync(SAVE_FILE, "utf8");
-    const saved = JSON.parse(data);
-
-    if (Array.isArray(saved.blocks)) {
-      for (const raw of saved.blocks) {
-        if (!raw) continue;
-        const x = Math.round(raw.x);
-        const y = Math.round(raw.y);
-        const z = Math.round(raw.z);
-        const color = (typeof raw.color === "number") ? raw.color : 0xffffff;
-        addBlock(x, y, z, color, false);
-      }
-      console.log("World loaded from save file.");
-    }
-  } else {
-    console.log("No save file found, starting fresh.");
-  }
-} catch (err) {
-  console.error("Error loading save file:", err);
-}
-
-// Save world automatically on shutdown
-process.on("SIGINT", () => {
-  const data = JSON.stringify({ blocks: Array.from(blocks.values()) }, null, 2);
-  fs.writeFileSync(SAVE_FILE, data);
-  console.log("World saved to", SAVE_FILE);
-  process.exit();
-});
-
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
-
-
-
-
-
-
-
-
