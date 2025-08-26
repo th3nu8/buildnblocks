@@ -172,8 +172,26 @@ io.on('connection', (socket) => {
   });
 });
 
+const fs = require("fs");
+const SAVE_FILE = "world.json";
+
+// Load world on server start
+let blocks = [];
+try {
+  if (fs.existsSync(SAVE_FILE)) {
+    const data = fs.readFileSync(SAVE_FILE, "utf8");
+    blocks = JSON.parse(data);
+    console.log("World loaded from save file.");
+  } else {
+    console.log("No save file found, starting fresh.");
+  }
+} catch (err) {
+  console.error("Error loading save file:", err);
+}
+
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
 
 
 
