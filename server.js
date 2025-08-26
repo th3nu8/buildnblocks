@@ -94,11 +94,24 @@ function castVote(socket, choice) {
 
   currentVote.votes.set(socket.id, choice);
 
+  let activeVote = null;
+  
   io.emit("vote-update", {
     voter: players.get(socket.id)?.name || "Player",
     yesCount: Array.from(currentVote.votes.values()).filter(v => v).length,
     noCount: Array.from(currentVote.votes.values()).filter(v => !v).length,
     needed: currentVote.needed,
+    activeVote = {
+      initiator: socket.id,
+      yes: new Set(),
+      no: new Set(),
+      timer: setTimeout(() => {
+        if (activeVote) {
+          io.emit("vote-failed", { reason: "Time ran out" });
+          activeVote = null;
+        }
+      }, 15000) // 15 seconds
+    };
   });
 
   checkVoteResult();
@@ -233,4 +246,5 @@ function applyWorldLoad(payload) {
 
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
 
