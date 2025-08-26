@@ -111,7 +111,7 @@ function castVote(socket, choice) {
           activeVote = null;
         }
       }, 15000) // 15 seconds
-    };
+    }
   });
 
   checkVoteResult();
@@ -246,5 +246,6 @@ function applyWorldLoad(payload) {
 
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
 
 
