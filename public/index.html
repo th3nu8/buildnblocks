@@ -118,21 +118,6 @@ html, body {
 #mobile-ui, #joystick-left, #jump-btn, canvas {
   touch-action: none;     /* Ensure these elements don’t trigger pinch/zoom */
 }
-
-#discord-btn {
-  margin-left: 10px;
-  background-color: #5865F2; /* Discord blurple */
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
-#discord-btn:hover {
-  background-color: #4752C4;
-}
-
 </style>
 </head>
 <body>
@@ -160,7 +145,6 @@ html, body {
   <button id="loadBtn">📂 Load</button>
   <input type="file" id="fileInput" style="display:none" accept=".json">
 </div>
-<button id="discord-btn">Discord</button>
 <div id="status">offline</div>
 <input id="nameInput" placeholder="Your name"/>
 <div id="playerList">Players:</div>
@@ -910,13 +894,6 @@ function animate(now) {
 animate(last);
 
 window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
-
-const discordBtn = document.getElementById('discordBtn');
-discordBtn.onclick = () => {
-  window.open("https://discord.gg/EqBbVtnG", "_blank");
-};
-
 </script>
 </body>
 </html>
-
