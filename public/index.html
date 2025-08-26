@@ -58,6 +58,16 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
   background: #fff;
 }
 
+#discordbtn button {
+  background #ffffffcc;
+  border: 1px solid #999;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: sans-serif;
+}
+
 /* --- Mobile Controls --- */
 #mobile-ui {
   position: fixed;
@@ -145,6 +155,8 @@ html, body {
   <button id="loadBtn">📂 Load</button>
   <input type="file" id="fileInput" style="display:none" accept=".json">
 </div>
+<div id="discordbtn">
+  <button id="discord">🤖 Discord</button>
 <div id="status">offline</div>
 <input id="nameInput" placeholder="Your name"/>
 <div id="playerList">Players:</div>
@@ -913,8 +925,13 @@ function animate(now) {
 // Start the animation loop
 animate(last);
 
+document.getElementById("discord").addEventListener("click", () => {
+  href = "https://discord.gg/EqBbVtnG"
+});
+  
 window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
 </script>
 </body>
 </html>
+
 
