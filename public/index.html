@@ -58,6 +58,16 @@ body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
   background: #fff;
 }
 
+#discordbtn {
+  position:fixed;
+  top: 10px;
+  left: 60%;
+  transform: translateX(-60%);
+  z-index: 1000;
+  display: flex;
+  gap: 8px
+}
+  
 #discordbtn button {
   background #ffffffcc;
   border: 1px solid #999;
@@ -157,6 +167,7 @@ html, body {
 </div>
 <div id="discordbtn">
   <button id="discord">🤖 Discord</button>
+</div>
 <div id="status">offline</div>
 <input id="nameInput" placeholder="Your name"/>
 <div id="playerList">Players:</div>
@@ -926,12 +937,13 @@ function animate(now) {
 animate(last);
 
 document.getElementById("discord").addEventListener("click", () => {
-  href = "https://discord.gg/EqBbVtnG"
+  window.open('https://discord.gg/EqBbVtnG', '_blank');
 });
   
 window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
 </script>
 </body>
 </html>
+
 
 
