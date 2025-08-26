@@ -518,6 +518,26 @@ chatInput.addEventListener("keydown", e => {
   }
 });
 
+socket.on("vote-start", ({ initiator, needed, yesCount, totalPlayers }) => {
+  const wants = confirm(`${initiator} wants to load a world.\n` +
+    `It needs ${needed} yes votes out of ${totalPlayers}.\n\n` +
+    `Do you agree?`);
+
+  socket.emit("vote", { choice: wants });
+});
+
+socket.on("vote-update", ({ voter, yesCount, noCount, needed }) => {
+  console.log(`Vote update: ${voter} voted. Yes: ${yesCount}, No: ${noCount} (Need ${needed})`);
+});
+
+socket.on("vote-success", ({ yesCount, needed }) => {
+  alert(`Vote passed! (${yesCount}/${needed})`);
+});
+
+socket.on("vote-error", ({ message }) => {
+  alert("Vote error: " + message);
+});
+
 socket.on("chat", data => {
   const div = document.createElement("div");
   div.textContent = data.name + ": " + data.text;
@@ -897,3 +917,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
