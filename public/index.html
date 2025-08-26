@@ -613,11 +613,6 @@ socket.on('build', ({x,y,z,color}) => {
 })
 socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
 
-const discordBtn = document.getElementById("discord-btn");
-discordBtn.onclick = () => {
-  window.open("https://discord.gg/YOUR_INVITE_CODE", "_blank");
-};
-
 // --- SAVE (authoritative) ---
 // when you click "Save", ask the server for the current world, then download it
 document.getElementById("saveBtn").addEventListener("click", () => {
@@ -915,10 +910,12 @@ function animate(now) {
 animate(last);
 
 window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
+
+const discordBtn = document.getElementById('discordBtn');
+discordBtn.onclick = () => {
+  window.open("https://discord.gg/YOUR_INVITE_CODE", "_blank");
+};
+
 </script>
 </body>
 </html>
-
-
-
-
