@@ -60,6 +60,61 @@ const MIN_COORD = -512;
 const MAX_COORD = 512;
 
 // ----- SOCKET -----
+
+let currentVote = null;
+
+function startVote(socket, worldData) {
+  if (currentVote) {
+    socket.emit("vote-error", { message: "A vote is already in progress!" });
+    return;
+  }
+
+  const totalPlayers = players.size;
+  const needed = Math.ceil(totalPlayers / 2);
+
+  currentVote = {
+    initiator: socket.id,
+    votes: new Map([[socket.id, true]]), // initiator automatically votes YES
+    worldData,
+    needed,
+  };
+
+  io.emit("vote-start", {
+    initiator: players.get(socket.id)?.name || "Player",
+    needed,
+    yesCount: 1,
+    totalPlayers,
+  });
+
+  checkVoteResult();
+}
+
+function castVote(socket, choice) {
+  if (!currentVote) return;
+
+  currentVote.votes.set(socket.id, choice);
+
+  io.emit("vote-update", {
+    voter: players.get(socket.id)?.name || "Player",
+    yesCount: Array.from(currentVote.votes.values()).filter(v => v).length,
+    noCount: Array.from(currentVote.votes.values()).filter(v => !v).length,
+    needed: currentVote.needed,
+  });
+
+  checkVoteResult();
+}
+
+function checkVoteResult() {
+  if (!currentVote) return;
+  const yesCount = Array.from(currentVote.votes.values()).filter(v => v).length;
+
+  if (yesCount >= currentVote.needed) {
+    applyWorldLoad(currentVote.worldData);
+    io.emit("vote-success", { yesCount, needed: currentVote.needed });
+    currentVote = null;
+  }
+}
+
 io.on('connection', (socket) => {
   // Give initial snapshot
   socket.emit('init', {
@@ -125,44 +180,19 @@ io.on('connection', (socket) => {
   socket.on('load-world', (payload) => {
     try {
       if (!payload || !Array.isArray(payload.blocks)) return;
-      const incoming = payload.blocks;
+      if (payload.blocks.length > MAX_BLOCKS_UPLOAD) return;
 
-      if (incoming.length > MAX_BLOCKS_UPLOAD) return; // hard limit
-
-      // Rebuild world:
-      // 1) keep ground
-      // 2) clear everything else
-      for (const [k, b] of blocks) {
-        if (!b.indestructible) blocks.delete(k);
-      }
-
-      let added = 0;
-      for (const raw of incoming) {
-        if (!raw || !Number.isFinite(raw.x) || !Number.isFinite(raw.y) || !Number.isFinite(raw.z)) continue;
-        // File stores positions as grid-centered (0.5 offset) or raw grid? We'll accept integers or .5 positions,
-        // but we snap to integers here (client saves integers + 0.5 in position -> we saved grid coords already).
-        const x = Math.round(raw.x);
-        const y = Math.round(raw.y);
-        const z = Math.round(raw.z);
-        if (x < MIN_COORD || x > MAX_COORD || y < MIN_COORD || y > MAX_COORD || z < MIN_COORD || z > MAX_COORD) continue;
-
-        const color = (typeof raw.color === 'number' && raw.color >= 0 && raw.color <= 0xffffff) ? raw.color : 0xffffff;
-
-        // Don’t overwrite ground
-        const k = keyOf(x, y, z);
-        if (blocks.has(k) && blocks.get(k).indestructible) continue;
-
-        if (addBlock(x, y, z, color, false)) added++;
-      }
-
-      // Broadcast the entire new world in one go
-      io.emit('world-set', { blocks: Array.from(blocks.values()) });
-      console.log(`World loaded: ${added} blocks (excluding ground).`);
-
+      startVote(socket, payload); // <-- initiate vote instead of loading immediately
     } catch (e) {
       console.error('load-world error:', e);
     }
   });
+
+socket.on("vote", ({ choice }) => {
+  if (typeof choice !== "boolean") return;
+  castVote(socket, choice);
+});
+
 
   socket.on('disconnect', () => {
     if (players.has(socket.id)) {
@@ -172,5 +202,35 @@ io.on('connection', (socket) => {
   });
 });
 
+function applyWorldLoad(payload) {
+  const incoming = payload.blocks;
+
+  // 1) keep ground, 2) clear everything else
+  for (const [k, b] of blocks) {
+    if (!b.indestructible) blocks.delete(k);
+  }
+
+  let added = 0;
+  for (const raw of incoming) {
+    if (!raw || !Number.isFinite(raw.x) || !Number.isFinite(raw.y) || !Number.isFinite(raw.z)) continue;
+
+    const x = Math.round(raw.x);
+    const y = Math.round(raw.y);
+    const z = Math.round(raw.z);
+    if (x < MIN_COORD || x > MAX_COORD || y < MIN_COORD || y > MAX_COORD || z < MIN_COORD || z > MAX_COORD) continue;
+
+    const color = (typeof raw.color === 'number' && raw.color >= 0 && raw.color <= 0xffffff) ? raw.color : 0xffffff;
+
+    const k = keyOf(x, y, z);
+    if (blocks.has(k) && blocks.get(k).indestructible) continue;
+
+    if (addBlock(x, y, z, color, false)) added++;
+  }
+
+  io.emit('world-set', { blocks: Array.from(blocks.values()) });
+  console.log(`World loaded: ${added} blocks (excluding ground).`);
+}
+
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
