@@ -777,12 +777,12 @@ function step(dt) {
                 local.vel.x = 0;
             }
             else if (overlapY < overlapX && overlapY < overlapZ) {
-                if (local.pos.y < b.position.y) {
-                    local.pos.y -= overlapY;
+                if (local.pos.y > b.position.y) {
+                    local.pos.y += overlapY;   // push up off the floor
                     local.onGround = true;
                     local.vel.y = 0;
                 } else {
-                    local.pos.y += overlapY;
+                    local.pos.y -= overlapY;   // push down from ceiling
                     local.vel.y = 0;
                 }
             }
@@ -915,6 +915,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
