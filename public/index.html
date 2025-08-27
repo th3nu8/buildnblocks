@@ -335,7 +335,7 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
           mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
           mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
           raycaster.setFromCamera(mouse, camera);
-          const hits = raycaster.intersectObjects(blocks);
+          const hits = raycaster.intersectObjects(instancedMesh, true);
           if (hits.length > 0 && activeTool) {
             const hit = hits[0];
             if (activeTool === 'build') {
@@ -513,7 +513,7 @@ const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
 window.addEventListener('pointerdown',e=>{
   if(e.button!==0||!activeTool)return;
   mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1;
-  raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(blocks);
+  raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(instancedMesh, true);
   if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
   if(activeTool==='build') {
@@ -886,7 +886,7 @@ function updatePreviewBlock() {
 
     // Raycast from camera through mouse
     raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObjects(blocks);
+    const hits = raycaster.intersectObjects(instancedMesh, true);
 
     if (hits.length > 0) {
         const hit = hits[0];
@@ -959,4 +959,5 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
