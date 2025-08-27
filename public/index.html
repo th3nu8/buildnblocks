@@ -371,38 +371,82 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
   }, { passive: false });
 }
 
-/* ---------- BLOCKS ---------- */
-const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
-function keyOf(x,y,z){return `${x}|${y}|${z}`;}
-function makeBlock(x, y, z, indestructible = false, color) {
-  const k = keyOf(x, y, z);
+/* ---------- BLOCKS (InstancedMesh Optimized) ---------- */
+function keyOf(x,y,z){ return `${x}|${y}|${z}`; }
+
+const blockGeometry = new THREE.BoxGeometry(1,1,1);
+const blockMaterial = new THREE.MeshStandardMaterial({ map: studTexture });
+const MAX_BLOCKS = 20000; // adjust depending on world size
+
+const instancedMesh = new THREE.InstancedMesh(blockGeometry, blockMaterial, MAX_BLOCKS);
+instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+scene.add(instancedMesh);
+
+// Data maps
+let blockCount = 0;
+const blockIndex = new Map();   // key -> instanceId
+const blockReverse = new Map(); // instanceId -> key
+const indestructibleBlocks = new Set();
+
+function makeBlock(x,y,z,indestructible=false,color) {
+  const k = keyOf(x,y,z);
   if (blockIndex.has(k)) return;
 
-  if (color === undefined) color = getBlockColor();
+  if (blockCount >= MAX_BLOCKS) {
+    console.warn("Max blocks reached!");
+    return;
+  }
 
-  const material = new THREE.MeshStandardMaterial({
-    map: studTexture,
-    color: color
-  });
+  const m = new THREE.Matrix4().makeTranslation(x+0.5, y+0.5, z+0.5);
+  instancedMesh.setMatrixAt(blockCount, m);
 
-  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
-  b.position.set(x + 0.5, y + 0.5, z + 0.5);
+  instancedMesh.instanceColor = instancedMesh.instanceColor ||
+    new THREE.InstancedBufferAttribute(new Float32Array(MAX_BLOCKS*3), 3);
 
-  // store grid coords and flags on the mesh
-  b.userData.grid = { x, y, z };
-  b.userData.indestructible = !!indestructible;
+  const c = new THREE.Color(color || getBlockColor());
+  instancedMesh.instanceColor.setXYZ(blockCount, c.r, c.g, c.b);
 
-  scene.add(b);
-  blocks.push(b);
-  blockIndex.set(k, b);
+  blockIndex.set(k, blockCount);
+  blockReverse.set(blockCount, k);
+  if (indestructible) indestructibleBlocks.add(k);
 
-  if (indestructible) indestructibleBlocks.add(b);
-  return b;
+  blockCount++;
+  instancedMesh.instanceMatrix.needsUpdate = true;
+  instancedMesh.instanceColor.needsUpdate = true;
 }
-function removeBlockAt(x,y,z){
-  const k = keyOf(x,y,z), m = blockIndex.get(k);
-  if (!m || indestructibleBlocks.has(m)) return false;
-  scene.remove(m); blocks.splice(blocks.indexOf(m),1); blockIndex.delete(k); return true;
+
+function removeBlockAt(x,y,z) {
+  const k = keyOf(x,y,z);
+  const id = blockIndex.get(k);
+  if (id === undefined || indestructibleBlocks.has(k)) return false;
+
+  const lastId = blockCount - 1;
+  if (id !== lastId) {
+    // Move last into removed slot
+    const tempMatrix = new THREE.Matrix4();
+    instancedMesh.getMatrixAt(lastId, tempMatrix);
+    instancedMesh.setMatrixAt(id, tempMatrix);
+
+    if (instancedMesh.instanceColor) {
+      const r = instancedMesh.instanceColor.getX(lastId);
+      const g = instancedMesh.instanceColor.getY(lastId);
+      const b = instancedMesh.instanceColor.getZ(lastId);
+      instancedMesh.instanceColor.setXYZ(id, r, g, b);
+    }
+
+    const lastKey = blockReverse.get(lastId);
+    blockIndex.set(lastKey, id);
+    blockReverse.set(id, lastKey);
+  }
+
+  blockIndex.delete(k);
+  blockReverse.delete(lastId);
+  indestructibleBlocks.delete(k);
+  blockCount--;
+
+  instancedMesh.instanceMatrix.needsUpdate = true;
+  instancedMesh.instanceColor.needsUpdate = true;
+  return true;
 }
 
 // ---------- BUILD PREVIEW BLOCK ----------
@@ -915,3 +959,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
