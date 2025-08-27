@@ -335,7 +335,7 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
           mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
           mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
           raycaster.setFromCamera(mouse, camera);
-          const hits = raycaster.intersectObjects(instancedMesh, true);
+          const hits = raycaster.intersectObjects(blocks);
           if (hits.length > 0 && activeTool) {
             const hit = hits[0];
             if (activeTool === 'build') {
@@ -371,82 +371,38 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
   }, { passive: false });
 }
 
-/* ---------- BLOCKS (InstancedMesh Optimized) ---------- */
-function keyOf(x,y,z){ return `${x}|${y}|${z}`; }
-
-const blockGeometry = new THREE.BoxGeometry(1,1,1);
-const blockMaterial = new THREE.MeshStandardMaterial({ map: studTexture });
-const MAX_BLOCKS = 20000; // adjust depending on world size
-
-const instancedMesh = new THREE.InstancedMesh(blockGeometry, blockMaterial, MAX_BLOCKS);
-instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-scene.add(instancedMesh);
-
-// Data maps
-let blockCount = 0;
-const blockIndex = new Map();   // key -> instanceId
-const blockReverse = new Map(); // instanceId -> key
-const indestructibleBlocks = new Set();
-
-function makeBlock(x,y,z,indestructible=false,color) {
-  const k = keyOf(x,y,z);
+/* ---------- BLOCKS ---------- */
+const blocks=[], blockIndex=new Map(), indestructibleBlocks=new Set();
+function keyOf(x,y,z){return `${x}|${y}|${z}`;}
+function makeBlock(x, y, z, indestructible = false, color) {
+  const k = keyOf(x, y, z);
   if (blockIndex.has(k)) return;
 
-  if (blockCount >= MAX_BLOCKS) {
-    console.warn("Max blocks reached!");
-    return;
-  }
+  if (color === undefined) color = getBlockColor();
 
-  const m = new THREE.Matrix4().makeTranslation(x+0.5, y+0.5, z+0.5);
-  instancedMesh.setMatrixAt(blockCount, m);
+  const material = new THREE.MeshStandardMaterial({
+    map: studTexture,
+    color: color
+  });
 
-  instancedMesh.instanceColor = instancedMesh.instanceColor ||
-    new THREE.InstancedBufferAttribute(new Float32Array(MAX_BLOCKS*3), 3);
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
+  b.position.set(x + 0.5, y + 0.5, z + 0.5);
 
-  const c = new THREE.Color(color || getBlockColor());
-  instancedMesh.instanceColor.setXYZ(blockCount, c.r, c.g, c.b);
+  // store grid coords and flags on the mesh
+  b.userData.grid = { x, y, z };
+  b.userData.indestructible = !!indestructible;
 
-  blockIndex.set(k, blockCount);
-  blockReverse.set(blockCount, k);
-  if (indestructible) indestructibleBlocks.add(k);
+  scene.add(b);
+  blocks.push(b);
+  blockIndex.set(k, b);
 
-  blockCount++;
-  instancedMesh.instanceMatrix.needsUpdate = true;
-  instancedMesh.instanceColor.needsUpdate = true;
+  if (indestructible) indestructibleBlocks.add(b);
+  return b;
 }
-
-function removeBlockAt(x,y,z) {
-  const k = keyOf(x,y,z);
-  const id = blockIndex.get(k);
-  if (id === undefined || indestructibleBlocks.has(k)) return false;
-
-  const lastId = blockCount - 1;
-  if (id !== lastId) {
-    // Move last into removed slot
-    const tempMatrix = new THREE.Matrix4();
-    instancedMesh.getMatrixAt(lastId, tempMatrix);
-    instancedMesh.setMatrixAt(id, tempMatrix);
-
-    if (instancedMesh.instanceColor) {
-      const r = instancedMesh.instanceColor.getX(lastId);
-      const g = instancedMesh.instanceColor.getY(lastId);
-      const b = instancedMesh.instanceColor.getZ(lastId);
-      instancedMesh.instanceColor.setXYZ(id, r, g, b);
-    }
-
-    const lastKey = blockReverse.get(lastId);
-    blockIndex.set(lastKey, id);
-    blockReverse.set(id, lastKey);
-  }
-
-  blockIndex.delete(k);
-  blockReverse.delete(lastId);
-  indestructibleBlocks.delete(k);
-  blockCount--;
-
-  instancedMesh.instanceMatrix.needsUpdate = true;
-  instancedMesh.instanceColor.needsUpdate = true;
-  return true;
+function removeBlockAt(x,y,z){
+  const k = keyOf(x,y,z), m = blockIndex.get(k);
+  if (!m || indestructibleBlocks.has(m)) return false;
+  scene.remove(m); blocks.splice(blocks.indexOf(m),1); blockIndex.delete(k); return true;
 }
 
 // ---------- BUILD PREVIEW BLOCK ----------
@@ -513,7 +469,7 @@ const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
 window.addEventListener('pointerdown',e=>{
   if(e.button!==0||!activeTool)return;
   mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1;
-  raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(instancedMesh, true);
+  raycaster.setFromCamera(mouse,camera); const hits=raycaster.intersectObjects(blocks);
   if(hits.length>0){const hit=hits[0]; const pos=hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
   const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z);
   if(activeTool==='build') {
@@ -886,7 +842,7 @@ function updatePreviewBlock() {
 
     // Raycast from camera through mouse
     raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObjects(instancedMesh, true);
+    const hits = raycaster.intersectObjects(blocks);
 
     if (hits.length > 0) {
         const hit = hits[0];
@@ -959,5 +915,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
