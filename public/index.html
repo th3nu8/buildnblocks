@@ -397,48 +397,42 @@ function makeBlock(x, y, z, indestructible = false, color) {
 
   const faceColor = new THREE.Color(color);
 
-  function addFace(verts, inds) {
+  function addFace(verts) {
     const base = vertices.length / 3;
     vertices.push(...verts);
-    indices.push(...inds.map(i => i + base));
+    indices.push(base, base+1, base+2, base, base+2, base+3);
     for (let i = 0; i < 4; i++) colors.push(faceColor.r, faceColor.g, faceColor.b);
   }
 
-  // +X
-  if (!neighbors.px) addFace(
-    [x+1,y,z,  x+1,y+1,z,  x+1,y+1,z+1,  x+1,y,z+1],
-    [0,1,2,0,2,3]
-  );
+  // +X (east)
+  if (!neighbors.px) addFace([
+    x+1,y,z,   x+1,y+1,z,   x+1,y+1,z+1,   x+1,y,z+1
+  ]);
 
-  // -X
-  if (!neighbors.nx) addFace(
-    [x,y,z+1,  x,y+1,z+1,  x,y+1,z,  x,y,z],
-    [0,1,2,0,2,3]
-  );
+  // -X (west)
+  if (!neighbors.nx) addFace([
+    x,y,z+1,   x,y+1,z+1,   x,y+1,z,   x,y,z
+  ]);
 
-  // +Y
-  if (!neighbors.py) addFace(
-    [x,y+1,z,  x+1,y+1,z,  x+1,y+1,z+1,  x,y+1,z+1],
-    [0,1,2,0,2,3]
-  );
+  // +Y (top)
+  if (!neighbors.py) addFace([
+    x,y+1,z,   x+1,y+1,z,   x+1,y+1,z+1,   x,y+1,z+1
+  ]);
 
-  // -Y
-  if (!neighbors.ny) addFace(
-    [x,y,z+1,  x+1,y,z+1,  x+1,y,z,  x,y,z],
-    [0,1,2,0,2,3]
-  );
+  // -Y (bottom)
+  if (!neighbors.ny) addFace([
+    x,y,z,   x+1,y,z,   x+1,y,z+1,   x,y,z+1
+  ]);
 
-  // +Z
-  if (!neighbors.pz) addFace(
-    [x,y,z+1,  x+1,y,z+1,  x+1,y+1,z+1,  x,y+1,z+1],
-    [0,1,2,0,2,3]
-  );
+  // +Z (north)
+  if (!neighbors.pz) addFace([
+    x,y,z+1,   x+1,y,z+1,   x+1,y+1,z+1,   x,y+1,z+1
+  ]);
 
-  // -Z
-  if (!neighbors.nz) addFace(
-    [x+1,y,z,  x,y,z,  x,y+1,z,  x+1,y+1,z],
-    [0,1,2,0,2,3]
-  );
+  // -Z (south)
+  if (!neighbors.nz) addFace([
+    x+1,y,z,   x,y,z,   x,y+1,z,   x+1,y+1,z
+  ]);
 
   if (vertices.length === 0) return; // fully hidden block
 
@@ -1002,6 +996,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
