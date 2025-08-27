@@ -380,29 +380,116 @@ function makeBlock(x, y, z, indestructible = false, color) {
 
   if (color === undefined) color = getBlockColor();
 
-  const material = new THREE.MeshStandardMaterial({
-    map: studTexture,
-    color: color
-  });
+  // Check neighbors
+  const neighbors = {
+    px: blockIndex.has(keyOf(x+1, y, z)),
+    nx: blockIndex.has(keyOf(x-1, y, z)),
+    py: blockIndex.has(keyOf(x, y+1, z)),
+    ny: blockIndex.has(keyOf(x, y-1, z)),
+    pz: blockIndex.has(keyOf(x, y, z+1)),
+    nz: blockIndex.has(keyOf(x, y, z-1)),
+  };
 
-  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
-  b.position.set(x + 0.5, y + 0.5, z + 0.5);
+  const geom = new THREE.BufferGeometry();
+  const vertices = [];
+  const indices = [];
+  const colors = [];
 
-  // store grid coords and flags on the mesh
-  b.userData.grid = { x, y, z };
-  b.userData.indestructible = !!indestructible;
+  const faceColor = new THREE.Color(color);
 
-  scene.add(b);
-  blocks.push(b);
-  blockIndex.set(k, b);
+  function addFace(verts, inds) {
+    const base = vertices.length / 3;
+    vertices.push(...verts);
+    indices.push(...inds.map(i => i + base));
+    for (let i = 0; i < 4; i++) colors.push(faceColor.r, faceColor.g, faceColor.b);
+  }
 
-  if (indestructible) indestructibleBlocks.add(b);
-  return b;
+  // +X
+  if (!neighbors.px) addFace(
+    [x+1,y,z,  x+1,y+1,z,  x+1,y+1,z+1,  x+1,y,z+1],
+    [0,1,2,0,2,3]
+  );
+
+  // -X
+  if (!neighbors.nx) addFace(
+    [x,y,z+1,  x,y+1,z+1,  x,y+1,z,  x,y,z],
+    [0,1,2,0,2,3]
+  );
+
+  // +Y
+  if (!neighbors.py) addFace(
+    [x,y+1,z,  x+1,y+1,z,  x+1,y+1,z+1,  x,y+1,z+1],
+    [0,1,2,0,2,3]
+  );
+
+  // -Y
+  if (!neighbors.ny) addFace(
+    [x,y,z+1,  x+1,y,z+1,  x+1,y,z,  x,y,z],
+    [0,1,2,0,2,3]
+  );
+
+  // +Z
+  if (!neighbors.pz) addFace(
+    [x,y,z+1,  x+1,y,z+1,  x+1,y+1,z+1,  x,y+1,z+1],
+    [0,1,2,0,2,3]
+  );
+
+  // -Z
+  if (!neighbors.nz) addFace(
+    [x+1,y,z,  x,y,z,  x,y+1,z,  x+1,y+1,z],
+    [0,1,2,0,2,3]
+  );
+
+  if (vertices.length === 0) return; // fully hidden block
+
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const mesh = new THREE.Mesh(geom, mat);
+
+  mesh.userData.grid = { x, y, z };
+  mesh.userData.indestructible = !!indestructible;
+
+  scene.add(mesh);
+  blocks.push(mesh);
+  blockIndex.set(k, mesh);
+
+  if (indestructible) indestructibleBlocks.add(mesh);
+  return mesh;
 }
-function removeBlockAt(x,y,z){
+
+function removeBlockAt(x, y, z) {
   const k = keyOf(x,y,z), m = blockIndex.get(k);
   if (!m || indestructibleBlocks.has(m)) return false;
-  scene.remove(m); blocks.splice(blocks.indexOf(m),1); blockIndex.delete(k); return true;
+
+  // remove block
+  scene.remove(m);
+  blocks.splice(blocks.indexOf(m), 1);
+  blockIndex.delete(k);
+
+  // re-render neighbors (they might have hidden faces that should show now)
+  const neighbors = [
+    [x+1,y,z], [x-1,y,z],
+    [x,y+1,z], [x,y-1,z],
+    [x,y,z+1], [x,y,z-1]
+  ];
+  for (const [nx,ny,nz] of neighbors) {
+    const nk = keyOf(nx,ny,nz);
+    const n = blockIndex.get(nk);
+    if (!n) continue;
+
+    // remove + remake neighbor
+    scene.remove(n);
+    blocks.splice(blocks.indexOf(n), 1);
+    blockIndex.delete(nk);
+    indestructibleBlocks.delete(n);
+    makeBlock(nx, ny, nz, n.userData.indestructible, n.material.color.getHex());
+  }
+
+  return true;
 }
 
 // ---------- BUILD PREVIEW BLOCK ----------
@@ -915,6 +1002,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
