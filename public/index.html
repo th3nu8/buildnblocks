@@ -380,7 +380,7 @@ function makeBlock(x, y, z, indestructible = false, color) {
 
   if (color === undefined) color = getBlockColor();
 
-  // Check neighbors
+  // Neighbor checks
   const neighbors = {
     px: blockIndex.has(keyOf(x+1, y, z)),
     nx: blockIndex.has(keyOf(x-1, y, z)),
@@ -393,55 +393,59 @@ function makeBlock(x, y, z, indestructible = false, color) {
   const geom = new THREE.BufferGeometry();
   const vertices = [];
   const indices = [];
-  const colors = [];
+  const uvs = [];
 
-  const faceColor = new THREE.Color(color);
-
-  function addFace(verts) {
+  function addFace(verts, faceUVs) {
     const base = vertices.length / 3;
     vertices.push(...verts);
     indices.push(base, base+1, base+2, base, base+2, base+3);
-    for (let i = 0; i < 4; i++) colors.push(faceColor.r, faceColor.g, faceColor.b);
+    uvs.push(...faceUVs);
   }
 
-  // +X (east)
+  // Standard cube UVs (square)
+  const faceUVs = [
+    0,0,  1,0,  1,1,  0,1
+  ];
+
+  // +X
   if (!neighbors.px) addFace([
     x+1,y,z,   x+1,y+1,z,   x+1,y+1,z+1,   x+1,y,z+1
-  ]);
+  ], faceUVs);
 
-  // -X (west)
+  // -X
   if (!neighbors.nx) addFace([
     x,y,z+1,   x,y+1,z+1,   x,y+1,z,   x,y,z
-  ]);
+  ], faceUVs);
 
-  // +Y (top)
+  // +Y
   if (!neighbors.py) addFace([
     x,y+1,z,   x+1,y+1,z,   x+1,y+1,z+1,   x,y+1,z+1
-  ]);
+  ], faceUVs);
 
-  // -Y (bottom)
+  // -Y
   if (!neighbors.ny) addFace([
     x,y,z,   x+1,y,z,   x+1,y,z+1,   x,y,z+1
-  ]);
+  ], faceUVs);
 
-  // +Z (north)
+  // +Z
   if (!neighbors.pz) addFace([
     x,y,z+1,   x+1,y,z+1,   x+1,y+1,z+1,   x,y+1,z+1
-  ]);
+  ], faceUVs);
 
-  // -Z (south)
+  // -Z
   if (!neighbors.nz) addFace([
     x+1,y,z,   x,y,z,   x,y+1,z,   x+1,y+1,z
-  ]);
+  ], faceUVs);
 
-  if (vertices.length === 0) return; // fully hidden block
+  if (vertices.length === 0) return; // hidden block
 
   geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geom.setIndex(indices);
   geom.computeVertexNormals();
 
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  // ✅ Use your stud texture again
+  const mat = new THREE.MeshLambertMaterial({ map: studTexture });
   const mesh = new THREE.Mesh(geom, mat);
 
   mesh.userData.grid = { x, y, z };
@@ -996,6 +1000,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
