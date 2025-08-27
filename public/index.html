@@ -380,114 +380,29 @@ function makeBlock(x, y, z, indestructible = false, color) {
 
   if (color === undefined) color = getBlockColor();
 
-  // Neighbor checks
-  const neighbors = {
-    px: blockIndex.has(keyOf(x+1, y, z)),
-    nx: blockIndex.has(keyOf(x-1, y, z)),
-    py: blockIndex.has(keyOf(x, y+1, z)),
-    ny: blockIndex.has(keyOf(x, y-1, z)),
-    pz: blockIndex.has(keyOf(x, y, z+1)),
-    nz: blockIndex.has(keyOf(x, y, z-1)),
-  };
+  const material = new THREE.MeshStandardMaterial({
+    map: studTexture,
+    color: color
+  });
 
-  const geom = new THREE.BufferGeometry();
-  const vertices = [];
-  const indices = [];
-  const uvs = [];
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
+  b.position.set(x + 0.5, y + 0.5, z + 0.5);
 
-  function addFace(verts, faceUVs) {
-    const base = vertices.length / 3;
-    vertices.push(...verts);
-    indices.push(base, base+1, base+2, base, base+2, base+3);
-    uvs.push(...faceUVs);
-  }
+  // store grid coords and flags on the mesh
+  b.userData.grid = { x, y, z };
+  b.userData.indestructible = !!indestructible;
 
-  // Standard cube UVs (square)
-  const faceUVs = [
-    0,0,  1,0,  1,1,  0,1
-  ];
+  scene.add(b);
+  blocks.push(b);
+  blockIndex.set(k, b);
 
-  // +X
-  if (!neighbors.px) addFace([
-    x+1,y,z,   x+1,y+1,z,   x+1,y+1,z+1,   x+1,y,z+1
-  ], faceUVs);
-
-  // -X
-  if (!neighbors.nx) addFace([
-    x,y,z+1,   x,y+1,z+1,   x,y+1,z,   x,y,z
-  ], faceUVs);
-
-  // +Y
-  if (!neighbors.py) addFace([
-    x,y+1,z,   x+1,y+1,z,   x+1,y+1,z+1,   x,y+1,z+1
-  ], faceUVs);
-
-  // -Y
-  if (!neighbors.ny) addFace([
-    x,y,z,   x+1,y,z,   x+1,y,z+1,   x,y,z+1
-  ], faceUVs);
-
-  // +Z
-  if (!neighbors.pz) addFace([
-    x,y,z+1,   x+1,y,z+1,   x+1,y+1,z+1,   x,y+1,z+1
-  ], faceUVs);
-
-  // -Z
-  if (!neighbors.nz) addFace([
-    x+1,y,z,   x,y,z,   x,y+1,z,   x+1,y+1,z
-  ], faceUVs);
-
-  if (vertices.length === 0) return; // hidden block
-
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geom.setIndex(indices);
-  geom.computeVertexNormals();
-
-  // ✅ Use your stud texture again
-  const mat = new THREE.MeshLambertMaterial({ map: studTexture });
-  const mesh = new THREE.Mesh(geom, mat);
-
-  mesh.userData.grid = { x, y, z };
-  mesh.userData.indestructible = !!indestructible;
-
-  scene.add(mesh);
-  blocks.push(mesh);
-  blockIndex.set(k, mesh);
-
-  if (indestructible) indestructibleBlocks.add(mesh);
-  return mesh;
+  if (indestructible) indestructibleBlocks.add(b);
+  return b;
 }
-
-function removeBlockAt(x, y, z) {
+function removeBlockAt(x,y,z){
   const k = keyOf(x,y,z), m = blockIndex.get(k);
   if (!m || indestructibleBlocks.has(m)) return false;
-
-  // remove block
-  scene.remove(m);
-  blocks.splice(blocks.indexOf(m), 1);
-  blockIndex.delete(k);
-
-  // re-render neighbors (they might have hidden faces that should show now)
-  const neighbors = [
-    [x+1,y,z], [x-1,y,z],
-    [x,y+1,z], [x,y-1,z],
-    [x,y,z+1], [x,y,z-1]
-  ];
-  for (const [nx,ny,nz] of neighbors) {
-    const nk = keyOf(nx,ny,nz);
-    const n = blockIndex.get(nk);
-    if (!n) continue;
-
-    // remove + remake neighbor
-    scene.remove(n);
-    blocks.splice(blocks.indexOf(n), 1);
-    blockIndex.delete(nk);
-    indestructibleBlocks.delete(n);
-    makeBlock(nx, ny, nz, n.userData.indestructible, n.material.color.getHex());
-  }
-
-  return true;
+  scene.remove(m); blocks.splice(blocks.indexOf(m),1); blockIndex.delete(k); return true;
 }
 
 // ---------- BUILD PREVIEW BLOCK ----------
@@ -1000,11 +915,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
