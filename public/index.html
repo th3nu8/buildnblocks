@@ -531,57 +531,47 @@ window.addEventListener('pointerdown',e=>{
 
 function greedyMesh(blocks) {
   const geometries = [];
-  const materialCache = {};
+  const material = new THREE.MeshStandardMaterial({ map: studTexture });
 
-  // Convert blocks Map into a fast lookup
-  const grid = {};
-  blocks.forEach(b => {
-    const k = `${b.x},${b.y},${b.z}`;
-    grid[k] = b.color;
-  });
+  // Build a fast lookup grid
+  const grid = new Set();
+  for (const b of blocks.values()) {
+    grid.add(`${b.x},${b.y},${b.z}`);
+  }
 
-  const directions = [
-    { d:[ 1, 0, 0], u:[0, 1, 0], v:[0, 0, 1] }, // +X
-    { d:[-1, 0, 0], u:[0, 1, 0], v:[0, 0, 1] }, // -X
-    { d:[0, 1, 0], u:[1, 0, 0], v:[0, 0, 1] }, // +Y
-    { d:[0,-1, 0], u:[1, 0, 0], v:[0, 0, 1] }, // -Y
-    { d:[0, 0, 1], u:[1, 0, 0], v:[0, 1, 0] }, // +Z
-    { d:[0, 0,-1], u:[1, 0, 0], v:[0, 1, 0] }  // -Z
+  const faceDirs = [
+    { d:[ 1,0,0], u:[0,1,0], v:[0,0,1], rot:[0,Math.PI/2,0] }, // +X
+    { d:[-1,0,0], u:[0,1,0], v:[0,0,1], rot:[0,-Math.PI/2,0] }, // -X
+    { d:[0,1,0], u:[1,0,0], v:[0,0,1], rot:[-Math.PI/2,0,0] }, // +Y
+    { d:[0,-1,0], u:[1,0,0], v:[0,0,1], rot:[Math.PI/2,0,0] }, // -Y
+    { d:[0,0,1], u:[1,0,0], v:[0,1,0], rot:[0,0,0] },           // +Z
+    { d:[0,0,-1], u:[1,0,0], v:[0,1,0], rot:[0,Math.PI,0] }     // -Z
   ];
 
-  for (const dir of directions) {
-    for (const key in grid) {
-      const [x, y, z] = key.split(',').map(Number);
-      const color = grid[key];
-      const nx = x + dir.d[0];
-      const ny = y + dir.d[1];
-      const nz = z + dir.d[2];
-      if (grid[`${nx},${ny},${nz}`]) continue; // neighbor filled, skip
+  for (const b of blocks.values()) {
+    const {x,y,z,color} = b;
 
+    // For each face, only add if neighbor is empty
+    for (const f of faceDirs) {
+      const nx = x + f.d[0];
+      const ny = y + f.d[1];
+      const nz = z + f.d[2];
+      if (grid.has(`${nx},${ny},${nz}`)) continue; // neighbor present, skip
+
+      // Create one quad (plane) for this exposed face
       const geom = new THREE.PlaneGeometry(1, 1);
-      const matKey = color.toString();
-      if (!materialCache[matKey]) {
-        materialCache[matKey] = new THREE.MeshStandardMaterial({ color });
-      }
-      const mesh = new THREE.Mesh(geom, materialCache[matKey]);
-
-      // Position + rotate
-      mesh.position.set(x + 0.5 * dir.d[0], y + 0.5 * dir.d[1], z + 0.5 * dir.d[2]);
-      if (dir.d[0]) mesh.rotation.y = Math.PI / 2;
-      if (dir.d[1]) mesh.rotation.x = -Math.PI / 2;
-      // dir.d[2] handled by default orientation
-      geometries.push(mesh);
+      geom.rotateX(f.rot[0]);
+      geom.rotateY(f.rot[1]);
+      geom.rotateZ(f.rot[2]);
+      geom.translate(x + 0.5*f.d[0] + 0.5, y + 0.5*f.d[1] + 0.5, z + 0.5*f.d[2] + 0.5);
+      geometries.push(geom);
     }
   }
 
-  // Merge all meshes
-  const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(
-    geometries.map(m => m.geometry.applyMatrix4(m.matrix)),
-    false
-  );
+  if (geometries.length === 0) return null;
 
-  const materials = Object.values(materialCache);
-  return new THREE.Mesh(merged, materials[0]); // (simple: one material group now)
+  const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(geometries, false);
+  return new THREE.Mesh(merged, material);
 }
 
 /* ---------- SOCKET.IO (greedy mesh + compatibility) ---------- */
@@ -1103,6 +1093,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
