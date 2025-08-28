@@ -180,6 +180,8 @@ html, body {
 
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.min.js"></script>
 
 <script>
 
@@ -492,36 +494,118 @@ window.addEventListener('pointerdown',e=>{
   }
 }});
 
-/* ---------- SOCKET.IO ---------- */
-const socket=io(), statusEl=document.getElementById('status'), nameInput=document.getElementById('nameInput'), playerList=document.getElementById('playerList');
-nameInput.value=local.name;
+function greedyMesh(blocks) {
+  const geometries = [];
+  const materialCache = {};
+
+  // Convert blocks Map into a fast lookup
+  const grid = {};
+  blocks.forEach(b => {
+    const k = `${b.x},${b.y},${b.z}`;
+    grid[k] = b.color;
+  });
+
+  const directions = [
+    { d:[ 1, 0, 0], u:[0, 1, 0], v:[0, 0, 1] }, // +X
+    { d:[-1, 0, 0], u:[0, 1, 0], v:[0, 0, 1] }, // -X
+    { d:[0, 1, 0], u:[1, 0, 0], v:[0, 0, 1] }, // +Y
+    { d:[0,-1, 0], u:[1, 0, 0], v:[0, 0, 1] }, // -Y
+    { d:[0, 0, 1], u:[1, 0, 0], v:[0, 1, 0] }, // +Z
+    { d:[0, 0,-1], u:[1, 0, 0], v:[0, 1, 0] }  // -Z
+  ];
+
+  for (const dir of directions) {
+    for (const key in grid) {
+      const [x, y, z] = key.split(',').map(Number);
+      const color = grid[key];
+      const nx = x + dir.d[0];
+      const ny = y + dir.d[1];
+      const nz = z + dir.d[2];
+      if (grid[`${nx},${ny},${nz}`]) continue; // neighbor filled, skip
+
+      const geom = new THREE.PlaneGeometry(1, 1);
+      const matKey = color.toString();
+      if (!materialCache[matKey]) {
+        materialCache[matKey] = new THREE.MeshStandardMaterial({ color });
+      }
+      const mesh = new THREE.Mesh(geom, materialCache[matKey]);
+
+      // Position + rotate
+      mesh.position.set(x + 0.5 * dir.d[0], y + 0.5 * dir.d[1], z + 0.5 * dir.d[2]);
+      if (dir.d[0]) mesh.rotation.y = Math.PI / 2;
+      if (dir.d[1]) mesh.rotation.x = -Math.PI / 2;
+      // dir.d[2] handled by default orientation
+      geometries.push(mesh);
+    }
+  }
+
+  // Merge all meshes
+  const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(
+    geometries.map(m => m.geometry.applyMatrix4(m.matrix)),
+    false
+  );
+
+  const materials = Object.values(materialCache);
+  return new THREE.Mesh(merged, materials[0]); // (simple: one material group now)
+}
+
+/* ---------- SOCKET.IO (greedy mesh + compatibility) ---------- */
+const socket = io(),
+      statusEl = document.getElementById('status'),
+      nameInput = document.getElementById('nameInput'),
+      playerList = document.getElementById('playerList');
+
+nameInput.value = local.name;
+
 // Load name from cookie if exists
 const savedName = getCookie('playerName');
-if(savedName) {
-    local.name = savedName;
-    nameInput.value = savedName;
+if (savedName) {
+  local.name = savedName;
+  nameInput.value = savedName;
 }
 
 // Listen for name changes
 nameInput.addEventListener('change', () => {
-    local.name = nameInput.value;
-    setCookie('playerName', local.name);  // save to cookie
-    socket.emit('name-change', {name: local.name});
+  local.name = nameInput.value;
+  setCookie('playerName', local.name);  // save to cookie
+  socket.emit('name-change', { name: local.name });
 });
 
-const others=new Map();
-function makeNametagSprite(text){
-  const canvas=document.createElement('canvas'); canvas.width=256; canvas.height=64;
-  const ctx=canvas.getContext('2d'); ctx.font='28px sans-serif'; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.fillText(text,128,48);
-  const tex=new THREE.CanvasTexture(canvas); tex.needsUpdate=true;
-  const mat=new THREE.SpriteMaterial({map:tex,transparent:true});
-  const sprite=new THREE.Sprite(mat); sprite.scale.set(2,0.5,1); return {sprite,canvas,ctx,texture:tex};
+/* ---- World storage for greedy mesh ----
+   We keep a map of blocks the server says exist.
+   Key: "x|y|z" -> { x, y, z, color, indestructible? }
+*/
+const clientBlocks = new Map();
+
+function kOf(x,y,z){ return `${x}|${y}|${z}`; }
+
+/** Rebuild the single merged mesh (greedy) from clientBlocks */
+function rebuildWorldMesh() {
+  if (window.worldMesh) {
+    scene.remove(window.worldMesh);
+    window.worldMesh.geometry.dispose();
+    if (Array.isArray(window.worldMesh.material)) {
+      window.worldMesh.material.forEach(m => m.dispose?.());
+    } else {
+      window.worldMesh.material.dispose?.();
+    }
+    window.worldMesh = null;
+  }
+
+  // greedyMesh should accept a Map or something iterable of {x,y,z,color,indestructible}
+  // If your greedyMesh expects a Map, pass clientBlocks as-is.
+  const mesh = greedyMesh(clientBlocks);
+  if (mesh) {
+    window.worldMesh = mesh;
+    scene.add(window.worldMesh);
+  }
 }
 
+/* ---------- Chat UI ---------- */
 const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 
-// Press Enter → focus chat input
+// Press Slash → focus chat input
 window.addEventListener("keydown", e => {
   if (e.code === "Slash") {
     e.preventDefault();
@@ -541,11 +625,20 @@ chatInput.addEventListener("keydown", e => {
   }
 });
 
-socket.on("vote-start", ({ initiator, needed, yesCount, totalPlayers }) => {
-  const wants = confirm(`${initiator} wants to load a world.\n` +
-    `It needs ${needed} yes votes out of ${totalPlayers}.\n\n` +
-    `Do you agree?`);
+socket.on("chat", data => {
+  const div = document.createElement("div");
+  div.textContent = data.name + ": " + data.text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+});
 
+/* ---------- Vote to load ---------- */
+socket.on("vote-start", ({ initiator, needed, yesCount, totalPlayers }) => {
+  const wants = confirm(
+    `${initiator} wants to load a world.\n` +
+    `It needs ${needed} yes votes out of ${totalPlayers}.\n\n` +
+    `Do you agree?`
+  );
   socket.emit("vote", { choice: wants });
 });
 
@@ -561,103 +654,164 @@ socket.on("vote-error", ({ message }) => {
   alert("Vote error: " + message);
 });
 
-socket.on("chat", data => {
-  const div = document.createElement("div");
-  div.textContent = data.name + ": " + data.text;
-  chatMessages.appendChild(div);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-});
+/* ---------- Players (others) ---------- */
+const others = new Map();
+function makeNametagSprite(text){
+  const canvas=document.createElement('canvas'); canvas.width=256; canvas.height=64;
+  const ctx=canvas.getContext('2d'); ctx.font='28px sans-serif'; ctx.fillStyle='white'; ctx.textAlign='center'; ctx.fillText(text,128,48);
+  const tex=new THREE.CanvasTexture(canvas); tex.needsUpdate=true;
+  const mat=new THREE.SpriteMaterial({map:tex,transparent:true});
+  const sprite=new THREE.Sprite(mat); sprite.scale.set(2,0.5,1); return {sprite,canvas,ctx,texture:tex};
+}
 
 function spawnOther(id,p){
-  if(others.has(id))return;
+  if(others.has(id)) return;
   const {group,parts}=makeAvatar(0xff4444,0x3333ff);
-  group.position.set(p.x,p.y - 0.25,p.z);
-  const nametagObj=makeNametagSprite(p.name||"Player");
-  nametagObj.sprite.position.set(0,2.1,0); group.add(nametagObj.sprite);
+  group.position.set(p.x, p.y - 0.25, p.z);
+  const nametagObj = makeNametagSprite(p.name || "Player");
+  nametagObj.sprite.position.set(0,2.1,0);
+  group.add(nametagObj.sprite);
   scene.add(group);
-  others.set(id,{group,...parts,nametag:nametagObj,pos:new THREE.Vector3(p.x,p.y - 0.25,p.z),walkTime:0,name:p.name||"Player"});
+  others.set(id, {
+    group, ...parts,
+    nametag: nametagObj,
+    pos: new THREE.Vector3(p.x, p.y - 0.25, p.z),
+    walkTime: 0,
+    name: p.name || "Player"
+  });
   updatePlayerList();
 }
-function removeOther(id){ const p=others.get(id); if(!p)return; scene.remove(p.group); others.delete(id); updatePlayerList();}
-function updatePlayerList(){
-  let html=`Players:<br>${local.name} (You)<br>`;
-  others.forEach(p=>html+=p.name+'<br>'); playerList.innerHTML=html;
-}
-socket.on('connect', () => {
-    local.id = socket.id;
-    statusEl.textContent = `online • ${local.name}`;
-    updatePlayerList();
 
-    // Send initial join info
-    socket.emit('join', {
-        x: local.pos.x,
-        y: local.pos.y - 1,
-        z: local.pos.z,
-        yaw: local.yaw,
-        name: local.name
-    });
+function removeOther(id){
+  const p=others.get(id); if(!p) return;
+  scene.remove(p.group);
+  others.delete(id);
+  updatePlayerList();
+}
+
+function updatePlayerList(){
+  let html = `Players:<br>${local.name} (You)<br>`;
+  others.forEach(p => html += p.name + '<br>');
+  playerList.innerHTML = html;
+}
+
+/* ---------- Connect / Init ---------- */
+socket.on('connect', () => {
+  local.id = socket.id;
+  statusEl.textContent = `online • ${local.name}`;
+  updatePlayerList();
+
+  // Send initial join info
+  socket.emit('join', {
+    x: local.pos.x,
+    y: local.pos.y - 1,
+    z: local.pos.z,
+    yaw: local.yaw,
+    name: local.name
+  });
 });
 
 socket.on('init', payload => {
-    for (const b of payload.blocks) {
-        makeBlock(b.x, b.y, b.z, !!b.indestructible, b.color);
-    }
+  // 1) Reset client block map
+  clientBlocks.clear();
 
-    // Spawn existing players
-    for (const [id, p] of Object.entries(payload.players)) {
-        if (id !== local.id) spawnOther(id, p);
-    }
+  // 2) Rebuild legacy per-cube meshes (for physics/raycast compatibility)
+  //    AND mirror into clientBlocks for greedy mesh.
+  //    Ground blocks are marked indestructible by the server.
+  for (const b of payload.blocks) {
+    // keep your current pipeline alive
+    makeBlock(b.x, b.y, b.z, !!b.indestructible, b.color);
+
+    // store for greedy mesh
+    clientBlocks.set(kOf(b.x,b.y,b.z), { x:b.x, y:b.y, z:b.z, color:b.color, indestructible: !!b.indestructible });
+  }
+
+  // 3) Spawn existing players
+  for (const [id, p] of Object.entries(payload.players)) {
+    if (id !== local.id) spawnOther(id, p);
+  }
+
+  // 4) Build merged mesh for rendering
+  rebuildWorldMesh();
 });
 
-socket.on('player-join',({id,x,y,z,name})=>{ if(id!==local.id) spawnOther(id,{x,y,z,name}); });
-socket.on('player-leave',({id})=>removeOther(id));
-socket.on('player-update',({id,x,y,z,yaw,name})=>{
-  if(id===local.id){ if(name) local.name=name; return; }
-  const p=others.get(id); if(!p) return;
-  if(x!==undefined)p.pos.x=x; if(y!==undefined)p.pos.y=y - 0.25; if(z!==undefined)p.pos.z=z;
-  if(yaw!==undefined)p.group.rotation.y=yaw;
-  if(name!==undefined){ p.name=name; const ctx=p.nametag.ctx; ctx.clearRect(0,0,256,64); ctx.fillText(name,128,48); p.nametag.texture.needsUpdate=true; }
+socket.on('player-join', ({id,x,y,z,name}) => { if(id!==local.id) spawnOther(id,{x,y,z,name}); });
+socket.on('player-leave', ({id}) => removeOther(id));
+
+socket.on('player-update', ({id,x,y,z,yaw,name}) => {
+  if (id === local.id) { if (name) local.name = name; return; }
+  const p = others.get(id); if (!p) return;
+  if (x!==undefined) p.pos.x = x;
+  if (y!==undefined) p.pos.y = y - 0.25;
+  if (z!==undefined) p.pos.z = z;
+  if (yaw!==undefined) p.group.rotation.y = yaw;
+  if (name!==undefined) {
+    p.name = name;
+    const ctx = p.nametag.ctx;
+    ctx.clearRect(0,0,256,64);
+    ctx.fillText(name,128,48);
+    p.nametag.texture.needsUpdate = true;
+  }
   updatePlayerList();
 });
 
-// Server replaced the world: clear (except we’ll reconstruct ground from the packet)
+/* ---------- World replace (authoritative set) ---------- */
 socket.on('world-set', ({ blocks: worldBlocks }) => {
-  // remove all existing meshes
-  blocks.forEach(m => scene.remove(m));
+  // 1) Clear legacy meshes & indices
+  // (your makeBlock/removeBlockAt manage blocks[], blockIndex, indestructibleBlocks)
+  // Remove all non-indestructible via existing helpers:
+  // Clear everything hard: remove all meshes the client created
+  blocks.slice().forEach(m => { scene.remove(m); });
   blocks.length = 0;
   blockIndex.clear();
   indestructibleBlocks.clear();
 
-  // rebuild from snapshot
+  // 2) Refill both systems
+  clientBlocks.clear();
   for (const b of worldBlocks) {
     makeBlock(b.x, b.y, b.z, !!b.indestructible, b.color);
+    clientBlocks.set(kOf(b.x,b.y,b.z), { x:b.x, y:b.y, z:b.z, color:b.color, indestructible: !!b.indestructible });
   }
+
+  // 3) Rebuild merged mesh
+  rebuildWorldMesh();
 });
 
-/* ---------- BUILD/REMOVE LISTEN ---------- */
-socket.on('build', ({x,y,z,color}) => {
-  makeBlock(x,y,z,false,color)
-})
-socket.on('remove',({x,y,z})=>{ removeBlockAt(x,y,z); });
+/* ---------- Incremental build/remove ---------- */
+socket.on('build', ({ x, y, z, color }) => {
+  // Legacy per-cube (so physics/raycast still work today)
+  makeBlock(x, y, z, false, color);
 
-// --- SAVE (authoritative) ---
-// when you click "Save", ask the server for the current world, then download it
+  // Update greedy dataset
+  clientBlocks.set(kOf(x,y,z), { x, y, z, color, indestructible: false });
+
+  // Rebuild merged mesh
+  rebuildWorldMesh();
+});
+
+socket.on('remove', ({ x, y, z }) => {
+  // Legacy per-cube removal
+  removeBlockAt(x, y, z);
+
+  // Update greedy dataset
+  clientBlocks.delete(kOf(x,y,z));
+
+  // Rebuild merged mesh
+  rebuildWorldMesh();
+});
+
+/* ---------- Save / Load ---------- */
+// Save: ask the server for world snapshot (authoritative)
 document.getElementById("saveBtn").addEventListener("click", () => {
   socket.emit('request-save');
 });
 
 // server sends world snapshot
 socket.on('world-data', ({ blocks: worldBlocks }) => {
-  // Optional: skip ground in the save file, so users only save their custom builds
+  // Optional: skip ground in the save file
   const data = worldBlocks
-    .filter(b => !b.indestructible) // don’t save the platform
-    .map(b => ({
-      // store integer grid coords; the server expects these on load
-      x: b.x,
-      y: b.y,
-      z: b.z,
-      color: b.color
-    }));
+    .filter(b => !b.indestructible)
+    .map(b => ({ x: b.x, y: b.y, z: b.z, color: b.color }));
 
   const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -669,8 +823,7 @@ socket.on('world-data', ({ blocks: worldBlocks }) => {
   URL.revokeObjectURL(url);
 });
 
-// --- LOAD (authoritative) ---
-// show file picker
+// Load: file picker
 document.getElementById("loadBtn").addEventListener("click", () => {
   document.getElementById("fileInput").click();
 });
@@ -693,7 +846,7 @@ document.getElementById("fileInput").addEventListener("change", event => {
       return;
     }
 
-    // We send grid coords + color to server; server will rebuild and broadcast
+    // Send to server; server validates and (after vote) broadcasts world-set
     const payload = {
       blocks: data.map(b => ({
         x: Math.round(b.x),
@@ -915,3 +1068,4 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
