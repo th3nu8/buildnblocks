@@ -191,9 +191,8 @@ html, body {
   style="position:fixed;bottom:8px;right:8px;width:70px;padding:4px;border-radius:4px;border:none;font-family:sans-serif;z-index:5;">
 
 
-<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-<script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.min.js"></script>
 
 <script>
@@ -246,9 +245,6 @@ scene.add(sun);
 
 const textureLoader=new THREE.TextureLoader();
 const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);});
-
-import * as THREE from 'three';
-import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
       
 function getBlockColor() {
   const hexInput = document.getElementById('blockColor')
@@ -607,23 +603,21 @@ function kOf(x,y,z){ return `${x}|${y}|${z}`; }
 let worldMesh = null;
 
 function rebuildWorldMesh() {
-  if (window.worldMesh) {
-    scene.remove(window.worldMesh);
-    window.worldMesh.geometry.dispose();
-    if (Array.isArray(window.worldMesh.material)) {
-      window.worldMesh.material.forEach(m => m.dispose?.());
-    } else {
-      window.worldMesh.material.dispose?.();
+  if (worldMesh) {
+    scene.remove(worldMesh);
+    if (worldMesh.geometry) worldMesh.geometry.dispose();
+    if (Array.isArray(worldMesh.material)) {
+      worldMesh.material.forEach(m => m.dispose?.());
+    } else if (worldMesh.material) {
+      worldMesh.material.dispose();
     }
-    window.worldMesh = null;
+    worldMesh = null;
   }
 
-  // greedyMesh should accept a Map or something iterable of {x,y,z,color,indestructible}
-  // If your greedyMesh expects a Map, pass clientBlocks as-is.
   const mesh = greedyMesh(clientBlocks);
   if (mesh) {
-    window.worldMesh = mesh;
-    scene.add(window.worldMesh);
+    worldMesh = mesh;
+    scene.add(worldMesh);
   }
 }
 
@@ -840,12 +834,11 @@ socket.on('build', ({ x, y, z, color }) => {
 socket.on('remove', ({ x, y, z }) => {
   // Legacy per-cube removal
   removeBlockAt(x, y, z);
-  rebuildWorldMesh();
 
-  // Update greedy dataset
-  clientBlocks.delete(kOf(x,y,z));
+  // Update greedy dataset first
+  clientBlocks.delete(kOf(x, y, z));
 
-  // Rebuild merged mesh
+  // Rebuild merged mesh once
   rebuildWorldMesh();
 });
 
@@ -957,8 +950,8 @@ function step(dt) {
     // Build player AABB
     let playerMin = new THREE.Vector3(local.pos.x - radius, local.pos.y - halfHeight, local.pos.z - radius);
     let playerMax = new THREE.Vector3(local.pos.x + radius, local.pos.y + halfHeight, local.pos.z + radius);
-    const nearby = getCollisionBlocks(local.pos, 3);  
-    for (let const b of nearby)) {
+    const nearby = getCollisionBlocks(local.pos, 3);
+    for (const b of nearby) {
         const min = b.position.clone().subScalar(0.5);
         const max = b.position.clone().addScalar(0.5);
 
@@ -967,12 +960,10 @@ function step(dt) {
             playerMax.y > min.y && playerMin.y < max.y &&
             playerMax.z > min.z && playerMin.z < max.z) {
 
-            // Overlaps along each axis
             const overlapX = Math.min(playerMax.x - min.x, max.x - playerMin.x);
             const overlapY = Math.min(playerMax.y - min.y, max.y - playerMin.y);
             const overlapZ = Math.min(playerMax.z - min.z, max.z - playerMin.z);
 
-            // Resolve the smallest overlap first
             if (overlapX < overlapY && overlapX < overlapZ) {
                 if (local.pos.x < b.position.x) local.pos.x -= overlapX;
                 else local.pos.x += overlapX;
@@ -1044,7 +1035,7 @@ function updatePreviewBlock() {
 
     // Raycast from camera through mouse
     raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObjects(blocks);
+    const hits = raycaster.intersectObjects(getNearbyBlocks(local.pos, 8));
 
     if (hits.length > 0) {
         const hit = hits[0];
@@ -1117,6 +1108,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
