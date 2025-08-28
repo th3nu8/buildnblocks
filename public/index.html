@@ -193,6 +193,9 @@ html, body {
 <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/utils/BufferGeometryUtils.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
+if (THREE.BufferGeometryUtils && geometries.length > 0) {
+    const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(geometries, false);
+}
 const fpsCounter = document.getElementById("fpsCounter");
 let frames = 0;
 let lastTime = performance.now();
@@ -1107,6 +1110,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
