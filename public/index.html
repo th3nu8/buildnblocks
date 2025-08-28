@@ -6,6 +6,18 @@
 <title>BuildNBlocks</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
+#fpsCounter {
+      position: fixed;
+      top: 10px;
+      right: 70px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      color: lime;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 5px 10px;
+      border-radius: 5px;
+}
 body,html{margin:0;padding:0;overflow:hidden;background:#222;cursor:default;}
 #toolbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:6px;font-family:sans-serif;color:#fff;z-index:5;}
 .tool{padding:6px 12px;border:1px solid #fff;border-radius:4px;cursor:pointer;user-select:none;}
@@ -141,6 +153,7 @@ html, body {
 </style>
 </head>
 <body>
+<div id="fpsCounter">FPS: 0</div>
 <!-- Mobile Controls -->
 <div id="mobile-ui" style="display:none; position:fixed; bottom:0; left:0; right:0; height:100%; pointer-events:none; z-index:20;">
   <!-- Movement joystick (left) -->
@@ -184,6 +197,28 @@ html, body {
 <script src="https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.min.js"></script>
 
 <script>
+
+const fpsCounter = document.getElementById("fpsCounter");
+let frames = 0;
+let lastTime = performance.now();
+let fps = 0;
+
+function update() {
+  frames++;
+  const now = performance.now();
+
+  // Update once per second
+  if (now - lastTime >= 1000) {
+    fps = frames;
+    frames = 0;
+    lastTime = now;
+    fpsCounter.textContent = `FPS: ${fps}`;
+  }
+
+  requestAnimationFrame(update);
+}
+
+requestAnimationFrame(update);
 
 // --- Cookie Helpers ---
 function setCookie(name, value, days = 365) {
@@ -1068,4 +1103,5 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
