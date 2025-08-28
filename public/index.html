@@ -247,6 +247,9 @@ scene.add(sun);
 const textureLoader=new THREE.TextureLoader();
 const studTexture=textureLoader.load('stud.png',t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);});
 
+import * as THREE from 'three';
+import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+      
 function getBlockColor() {
   const hexInput = document.getElementById('blockColor')
   if(!hexInput) return 0xffffff
@@ -601,6 +604,8 @@ const clientBlocks = new Map();
 function kOf(x,y,z){ return `${x}|${y}|${z}`; }
 
 /** Rebuild the single merged mesh (greedy) from clientBlocks */
+let worldMesh = null;
+
 function rebuildWorldMesh() {
   if (window.worldMesh) {
     scene.remove(window.worldMesh);
@@ -1112,6 +1117,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
