@@ -563,9 +563,9 @@ function greedyMesh(blocks) {
 
   if (geometries.length === 0) return null;
 
-  // Instead of just mergeBufferGeometries(...)
+  // Instead of just mergeGeometries(...)
   if (geometries.length === 0) return null;
-  const mergedGeometry = THREE.BufferGeometryUtils.mergeBufferGeometries(geometries);
+  const mergedGeometry = THREE.BufferGeometryUtils.mergeGeometries(geometries);
   return new THREE.Mesh(mergedGeometry, material);
 }
 
@@ -1108,6 +1108,7 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
+
 
 
 
