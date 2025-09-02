@@ -187,22 +187,11 @@ html, body {
 <div id="healthContainer">
   <div id="healthBar"></div>
 </div>
-<input type="color" id="blockColor" value="FFFFFF" placeholder="#hex" 
+<input type="color" id="blockColor" value="#FFFFFF" placeholder="#hex" 
   style="position:fixed;bottom:8px;right:8px;width:70px;padding:4px;border-radius:4px;border:none;font-family:sans-serif;z-index:5;">
-
-
-<!-- Three.js core library -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
-
-<!-- BufferGeometryUtils (non-module version) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.1/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.164.1/examples/js/utils/BufferGeometryUtils.js"></script>
-
-<!-- Socket.io -->
 <script src="/socket.io/socket.io.js"></script>
-
-<!--Main JS code -->
-<script src="index.js"></script>
-
 <script>
 
 const fpsCounter = document.getElementById("fpsCounter");
@@ -574,9 +563,9 @@ function greedyMesh(blocks) {
 
   if (geometries.length === 0) return null;
 
-  // Instead of just mergeBufferGeometries(...)
+  // Instead of just mergeGeometries(...)
   if (geometries.length === 0) return null;
-  const mergedGeometry = THREE.BufferGeometryUtils.mergeBufferGeometries(geometries);
+  const mergedGeometry = THREE.BufferGeometryUtils.mergeGeometries(geometries);
   return new THREE.Mesh(mergedGeometry, material);
 }
 
@@ -1119,15 +1108,3 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
