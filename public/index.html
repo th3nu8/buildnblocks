@@ -372,7 +372,7 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
           mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
           mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
           raycaster.setFromCamera(mouse, camera);
-          const hits = raycaster.intersectObjects(getNearbyBlocks(local.pos, 8));
+          const hits = raycaster.intersectObjects(blocks);
           if (hits.length > 0 && activeTool) {
             const hit = hits[0];
             if (activeTool === 'build') {
@@ -415,20 +415,25 @@ function makeBlock(x, y, z, indestructible = false, color) {
   const k = keyOf(x, y, z);
   if (blockIndex.has(k)) return;
 
-  // invisible physics cube
-  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1));
-  b.visible = false; 
+  if (color === undefined) color = getBlockColor();
+
+  const material = new THREE.MeshStandardMaterial({
+    map: studTexture,
+    color: color
+  });
+
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material);
   b.position.set(x + 0.5, y + 0.5, z + 0.5);
+
+  // store grid coords and flags on the mesh
   b.userData.grid = { x, y, z };
   b.userData.indestructible = !!indestructible;
 
   scene.add(b);
   blocks.push(b);
   blockIndex.set(k, b);
-  if (indestructible) indestructibleBlocks.add(b);
 
-  // add to merged render list
-  clientBlocks.set(k, { x, y, z, color, indestructible });
+  if (indestructible) indestructibleBlocks.add(b);
   return b;
 }
 function removeBlockAt(x,y,z){
@@ -511,7 +516,6 @@ window.addEventListener('pointerdown',e=>{
       if(!blockIndex.has(keyOf(x,y,z))){
         const color = getBlockColor()
         makeBlock(x, y, z, false, color)
-        rebuildWorldMesh();    
         socket.emit('build', {x, y, z, color})
       }
     }
@@ -620,28 +624,6 @@ function rebuildWorldMesh() {
     window.worldMesh = mesh;
     scene.add(window.worldMesh);
   }
-}
-
-// --- Nearby Block Helpers ---
-function getNearbyBlocks(pos, radius = 10) {
-  const result = [];
-  const px = Math.floor(pos.x);
-  const py = Math.floor(pos.y);
-  const pz = Math.floor(pos.z);
-
-  for (let x = px - radius; x <= px + radius; x++) {
-    for (let y = py - radius; y <= py + radius; y++) {
-      for (let z = pz - radius; z <= pz + radius; z++) {
-        const b = blockIndex.get(`${x}|${y}|${z}`);
-        if (b) result.push(b);
-      }
-    }
-  }
-  return result;
-}
-
-function getCollisionBlocks(pos, radius = 3) {
-  return getNearbyBlocks(pos, radius);
 }
 
 /* ---------- Chat UI ---------- */
@@ -835,7 +817,6 @@ socket.on('build', ({ x, y, z, color }) => {
 socket.on('remove', ({ x, y, z }) => {
   // Legacy per-cube removal
   removeBlockAt(x, y, z);
-  rebuildWorldMesh();
 
   // Update greedy dataset
   clientBlocks.delete(kOf(x,y,z));
@@ -952,8 +933,8 @@ function step(dt) {
     // Build player AABB
     let playerMin = new THREE.Vector3(local.pos.x - radius, local.pos.y - halfHeight, local.pos.z - radius);
     let playerMax = new THREE.Vector3(local.pos.x + radius, local.pos.y + halfHeight, local.pos.z + radius);
-    const nearby = getCollisionBlocks(local.pos, 3);  
-    for (let const b of nearby)) {
+
+    for (let b of blocks) {
         const min = b.position.clone().subScalar(0.5);
         const max = b.position.clone().addScalar(0.5);
 
@@ -1112,7 +1093,6 @@ window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.in
 </script>
 </body>
 </html>
-
 
 
 
