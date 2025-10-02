@@ -1,39 +1,27 @@
 // ---- server.js ----
-// --- server.js (ADD THIS SECTION) ---
-
-// Existing code:
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
-
-// ADD A SIMPLE HEALTH CHECK ROUTE HERE:
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
-});
-
-app.use(express.static(path.join(__dirname, 'public'))); // Your static file serving
-
-// ... rest of your code ...
-
-// The final server.listen() command
-const PORT = process.env.PORT || 80; // Correctly using the environment PORT
-server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
 const path = require('path');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 
+// 1. PRIMARY SETUP (No duplicates allowed!)
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
+// 2. HEALTH CHECK ROUTE (Required for Render to stay alive)
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// 3. STATIC FILE SERVING
 app.use(express.static(path.join(__dirname, 'public'))); // serve index.html, stud.png, etc.
 
+// ----- WORLD STATE & FUNCTIONS -----
 const GROUND_MIN = -25;
 const GROUND_MAX = 24; // inclusive
 const GROUND_Y = 0;
 
-// ----- WORLD STATE -----
 /**
  * We store blocks by key "x|y|z"
  * { x, y, z, color, indestructible }
@@ -71,15 +59,12 @@ function buildGround() {
 }
 buildGround();
 
-
-
 // ----- VALIDATION LIMITS -----
 const MAX_BLOCKS_UPLOAD = 999999999;
 const MIN_COORD = -512;
 const MAX_COORD = 512;
 
-// ----- SOCKET -----
-
+// ----- SOCKET STATE AND VOTE LOGIC -----
 let currentVote = null;
 
 function startVote(socket, worldData) {
@@ -134,6 +119,7 @@ function checkVoteResult() {
   }
 }
 
+// ----- SOCKET.IO CONNECTION HANDLER -----
 io.on('connection', (socket) => {
   // Give initial snapshot
   socket.emit('init', {
@@ -141,10 +127,10 @@ io.on('connection', (socket) => {
     players: Object.fromEntries(players),
   });
 
-   socket.on("chat", data => {
+  socket.on("chat", data => {
     // data: { name: "Player", text: "Hello" }
     io.emit("chat", data); // broadcast to everyone
-   });
+  });
 
   socket.on('join', (p) => {
     players.set(socket.id, {
@@ -207,11 +193,10 @@ io.on('connection', (socket) => {
     }
   });
 
-socket.on("vote", ({ choice }) => {
-  if (typeof choice !== "boolean") return;
-  castVote(socket, choice);
-});
-
+  socket.on("vote", ({ choice }) => {
+    if (typeof choice !== "boolean") return;
+    castVote(socket, choice);
+  });
 
   socket.on('disconnect', () => {
     if (players.has(socket.id)) {
@@ -250,6 +235,6 @@ function applyWorldLoad(payload) {
   console.log(`World loaded: ${added} blocks (excluding ground).`);
 }
 
+// 4. SERVER START (Must be unique)
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
-
