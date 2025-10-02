@@ -2,15 +2,18 @@
   "name": "buildnblocks",
   "version": "1.0.0",
   "description": "BuildNBlocks",
-  "main": "server.js",
+  "main": "src/worker.js",  <-- UPDATED
   "scripts": {
-    "start": "node server.js"
+    "node-start": "node server.js",
+    "start": "wrangler dev",         <-- ADDED
+    "deploy": "wrangler deploy"       <-- ADDED
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.1",
     "bcryptjs": "^2.4.3",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "@cloudflare/kv-asset-handler": "^0.3.0"  <-- ADDED
   },
   "engines": {
     "node": "20.x"
@@ -19,7 +22,3 @@
   "author": "",
   "license": "ISC"
 }
-
-
-
-
