@@ -1,0 +1,5 @@
+name = "buildnblocks"
+main = "src/worker.js"
+compatibility_date = "2025-10-02"
+[site]
+bucket = "./public"
