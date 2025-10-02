@@ -1,9 +1,0 @@
-name = "buildnblocks"
-
-# 💡 1. Point 'main' to the new Worker file you created.
-main = "src/worker.js" 
-compatibility_date = "2025-10-02"
-
-# 🛠️ 2. Point 'bucket' to your static assets folder.
-[site]
-bucket = "./public" 
