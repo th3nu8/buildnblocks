@@ -1,4 +1,23 @@
 // ---- server.js ----
+// --- server.js (ADD THIS SECTION) ---
+
+// Existing code:
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
+
+// ADD A SIMPLE HEALTH CHECK ROUTE HERE:
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.use(express.static(path.join(__dirname, 'public'))); // Your static file serving
+
+// ... rest of your code ...
+
+// The final server.listen() command
+const PORT = process.env.PORT || 80; // Correctly using the environment PORT
+server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
 const path = require('path');
 const express = require('express');
 const http = require('http');
@@ -233,3 +252,4 @@ function applyWorldLoad(payload) {
 
 const PORT = process.env.PORT || 80;
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
